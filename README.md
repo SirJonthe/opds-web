@@ -1,0 +1,30 @@
+# opds-web
+
+## About
+
+A minimal web client for OPDS servers.
+
+## Background
+
+OPDS (Open Publication Distribution System) is an open standard which allows clients to browse catalogs of electronic publications hosted by OPDS servers. Many native e-readers for desktop and mobile have support for connecting to OPDS, but many e-ink devices such as Kindle and Kobo do not (presumably in order to lock users into their own preferred ecosystem for publications). For such devices, the only solutions have either been to jailbreak them and install third party software, or utilize some kind of web solution for the devices that offer a browser. Another complicating factor is older e-ink devices which do not offer much in the way of modern web browsers meaning that many web pages will fail to work - Even sleek self-hosted solutions like Komga.
+
+`opds-web` is a deliberately minimal web client written in Python designed to connect to OPDS servers in order to download electronic publications. Most of the heavy-lifting happens server-side while the rendering is client-side. It does not offer any styling in order to maintain the absolute maximum level of compatibility with older devices and browsers. That means no CSS, and no Javascript!
+
+`opds-web` helps you download content locally. The actual reading itself is meant to be done offline using the native reader.
+
+## Usage
+
+`opds-web` needs to be deployed to a server - Probably a home server. It has a small set of requirements such as `python3` and the libraries as defined in `requirements.txt`. You must decide for yourself how you want this software to boot and what ports to listen to, but for the purposes of the below sections I will use the example URL `http://[MY_SERVER]:[MY_OPDS_WEB_PORT]`. You must also ensure that firewall settings allow communication between the server and the client device.
+
+Installing the requirements for the server includes installing the `python3` package by whatever means you deem fit. Then you can install the requirements using `pip` (if available and if this is your preference) using:
+
+```
+pip install requirements.txt
+```
+
+Finally, you can boot the software using:
+```
+python3 main.py
+```
+
+Once deployed, you can boot your browser-enabled client device and browse to the URL `http://[MY_SERVER]:[MY_OPDS_WEB_PORT]`. The first page allows you to add OPDS servers or browse already added OPDS servers. Clicking a server will prompt you for credentials for accessing the server when applicable. Once you have access you will be able to browse the digital OPDS catalog.
