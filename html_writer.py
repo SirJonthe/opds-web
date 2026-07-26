@@ -1,5 +1,6 @@
 from html import escape
 from urllib.parse import urljoin, quote, urlparse, parse_qs
+import opds
 
 class HTMLWriter:
 
@@ -72,7 +73,7 @@ class HTMLWriter:
 
 
     @staticmethod
-    def browse() -> str:
+    def browse(entries : list[opds.Entry], browse_path : str, view_path : str) -> str:
         pass
 
 

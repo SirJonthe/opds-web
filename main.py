@@ -6,14 +6,14 @@ from html import escape
 from urllib.parse import urljoin, quote, urlparse, parse_qs
 import servers
 import argparse
-import opds1
-import opds2
+import opds
 import html_writer
 
 
 class App:
     client: Flask
     servers: dict[str, str]
+
 
     def __init__(self : App):
         self.client = Flask(__name__)
@@ -57,9 +57,9 @@ def get_feed_reader(path : str, server_id : str):
     r.raise_for_status()
     content_type = r.headers.get("Content-Type", "")
     if "atom" in content_type or "xml" in content_type:
-        return opds1.ReaderV1(r.text)
+        return opds.from_xml(r.text)
     elif "json" in content_type:
-        return opds2.ReaderV2(r.text)
+        return opds.from_json(r.text)
     return None
 
 
@@ -70,10 +70,11 @@ def index():
 
 @app.client.route("/browse")
 def browse():
-    return html_writer.HTMLWriter.browse()
+    reader = get_feed_reader(request.args["url"], requests.args["server"])
+    return html_writer.HTMLWriter.browse(reader.entries, "browse", "view")
 
 
-@app.client.route("/entry")
+@app.client.route("/view")
 def entry():
     return html_writer.HTMLWriter.entry()
 
