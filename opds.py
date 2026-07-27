@@ -1,7 +1,19 @@
+"""OPDS feed parsing and deserialization utilities."""
+
 import xml.etree.ElementTree as ET
 
 
 class Entry:
+    """Represents a single deserialized entry in an OPDS feed (generally a directory or a file).
+
+    Attributes:
+        id: The OPDS ID of the current entry.
+        title: The title of the entry.
+        description: The description of the entry.
+        authors: If a file, contains a list of authors.
+        links: A mess of links present in the entry. Use wrapper functions to get URL:s safely.
+    """
+
     id : str
     title : str
     description : str
@@ -18,24 +30,52 @@ class Entry:
 
 
     def _link(self, rel : str) -> str | None:
+        """Safely returns a link by key from the stored links.
+
+        Args:
+            rel: The key used to store a link.
+        
+        Returns:
+            The URL or none if the key is not present.
+        """
         if rel in self.links:
             return self.links[rel]
         return None
 
 
     def is_file(self):
+        """Determines if the entry is a file.
+
+        Returns:
+            True if the entry is a file. False if the entry is a directory.
+        """
         return self.download_url() is not None
 
 
     def download_url(self) -> str | None:
+        """Returns the download URL if present.
+
+        Returns:
+            The download URL or None if not present.
+        """
         return self._link("http://opds-spec.org/acquisition")
 
 
     def thumbnail_url(self) -> str | None:
+        """Returns the thumbnail URL if present.
+        
+        Returns:
+            The thumbnail URL or None if not present.
+        """
         return self._link("http://opds-spec.org/image/thumbnail")
 
 
     def subsection_url(self) -> str | None:
+        """Returns the subsection URL if present.
+
+        Returns:
+            The subsection URL or None if not present.
+        """
         return self._link("subsection")
 
 
@@ -43,6 +83,15 @@ NS = { "atom": "http://www.w3.org/2005/Atom" }
 
 
 class Reader:
+    """Represents a deserialized OPDS feed.
+
+    Attributes:
+        title: The stored title of the OPDS feed.
+        entries: A dictionary of deserialized OPDS feed entries grouped by entry ID as key.
+        links: A dictionary of links stored in the root of the OPDS feed.
+        version: A string indicating the version of the OPDS feed that was deserialized.
+    """
+
     title : str
     entries : dict[str, Entry]
     links : dict[str, str]
@@ -56,6 +105,15 @@ class Reader:
 
 
 def from_xml(xml : str) -> Reader:
+    """Deserializes a XML (v1.2) OPDS feed.
+
+    Args:
+        xml: An XML OPDS (Atom) feed.
+
+    Returns:
+        An OPDS reader object.
+    """
+
     root = ET.fromstring(xml)
     reader = Reader(root.find("atom:title", NS).text)
     reader.version = "1"
@@ -77,6 +135,14 @@ def from_xml(xml : str) -> Reader:
 
 
 def from_json(self, json : str) -> Reader:
+    """Deserializes a JSON (v2) OPDS feed.
+    
+    Args:
+        json: An JSON OPDS feed.
+
+    Returns:
+        An OPDS reader object.
+    """
     # TODO: OPDS v2 goes here...
     reader = Reader()
     reader.version = "2"

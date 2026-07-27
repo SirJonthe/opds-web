@@ -3,7 +3,6 @@ import requests
 import app
 import argparse
 import ui
-import app
 
 
 server = app.App()

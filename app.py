@@ -1,3 +1,6 @@
+"""Web application server software for parsing, navigating, and presenting a UI for OPDS feeds."""
+
+
 import hashlib
 import opds
 from flask import Response, Flask, request
@@ -10,12 +13,27 @@ SERVER_FILE = "servers.txt"
 
 
 class App:
+    """The web server software for the navigating and generating HTML for OPDS.
+    
+    Attributes:
+        client: The Flask web client.
+        servers: A dictionary of server URL:s stored by server ID as key.
+    """
+
     client: Flask
     servers: dict[str, str]
 
 
     @staticmethod
-    def _server_id(url : str):
+    def _server_id(url : str) -> str:
+        """Extract a server ID from a server URL.
+        
+        Args:
+            url: A URL.
+        
+        Returns:
+            The server ID.
+        """
         return hashlib.sha256(
             url.encode("utf-8")
         ).hexdigest()[:12]
@@ -23,6 +41,11 @@ class App:
 
     @staticmethod
     def _load_servers() -> dict[str, str]:
+        """Loads the list of servers as stored in the main server file.
+        
+        Returns:
+            A dictionary of server URL:s stored by server ID as key. Silently returns an empty dictionary if the file could not be loaded.
+        """
         srv = {}
         try:
             with open(SERVER_FILE, "r", encoding="utf-8") as f:
@@ -38,6 +61,11 @@ class App:
 
     @staticmethod
     def _save_servers(servers : dict[str, str]):
+        """Saves a server dictionary to the main server file by overwriting it.
+
+        Args:
+            servers: A dictionary of server URL:s stored by server ID as key.
+        """
         with open(SERVER_FILE, "w") as f:
             f.write("#[protocol]://[hostname]:[port]/[opds_url]\n")
             for _, url in servers.items():
@@ -45,11 +73,21 @@ class App:
 
 
     def add_server(self, url : str):
+        """Adds a new server URL to the existing server list and updates the main server file.
+
+        Args:
+            url: The server URL to store.
+        """
         self.servers[App._server_id(url)] = url.strip().rstrip("/").lower()
         App._save_servers(self.servers)
 
 
     def remove_server(self, server_id : str):
+        """Removes the server URL corresponding to the server ID key and updates the main server file.
+
+        Args:
+            server_id: The server ID key corresponding to the server URL to remove.
+        """
         del self.servers[server_id]
         App._save_servers(self.servers)
 
@@ -59,12 +97,29 @@ class App:
         self.servers = App._load_servers()
 
 
+    @staticmethod
     def _get_base_server_url(url : str) -> str:
+        """ Returns the base URL from a full URL.
+
+        Args:
+            url: The full URL. For instance http://homeserver:25600/opds/v1.2/libraries.
+
+        Returns:
+            The base URL. For instance http://homeserver:25600.
+        """
         p = urlparse(url)
         return f"{p.scheme}://{p.netloc}"
 
 
     def get_credentials(self, url : str) -> tuple[str, str]:
+        """Requests the browser to prompt the user for credentials.
+
+        Args:
+            url: The URL to request credentials for (not really necessary).
+        
+        Returns:
+            Either a tuple of username and password, or an HTTP response indicating an error.
+        """
         server = App._get_base_server_url(url)
         if server == None:
             return Response(
@@ -87,6 +142,14 @@ class App:
 
 
     def get_feed_reader(self, path : str) -> opds.Reader | Response:
+        """Retrieves a (presumably) OPDS feed and parses it inside an OPDS reader object which is then returned.
+
+        Args:
+            path: The path to retrieve a feed from.
+        
+        Returns:
+            Either an OPDS reader object, or an HTTP response indicating an error.
+        """
         credentials = self.get_credentials(path)
         if isinstance(credentials, Response):
             return credentials
