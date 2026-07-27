@@ -71,7 +71,7 @@ def from_xml(xml : str) -> Reader:
             e.links[link.attrib.get("rel")] = link.attrib.get("href")
         for author in entry.findall("atom:author", NS):
             for name in author.findall("atom:name", NS):
-                e.authors += name.text
+                e.authors += [ name.text ]
         reader.entries[e.id] = e
     return reader
 

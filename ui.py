@@ -3,8 +3,6 @@ from urllib.parse import urljoin, quote, urlparse, parse_qs
 import opds
 
 class UI:
-
-
     @staticmethod
     def _tag(tag : str, param : str, content : str) -> str:
         if param is None or param == "":
@@ -19,19 +17,9 @@ class UI:
 
     @staticmethod
     def _render_link(path : str, text : str, url : str, server_id : str) -> str:
-        return f'<h2><a href="/{path}?server={server_id}&url={url}">{escape(text)}</a></h2>'
-
-
-    @staticmethod
-    def _render_authors(authors : list[str]) -> str:
-        out : str = ""
-        i : int = 0
-        for author in authors:
-            if i > 0:
-                out += ", "
-            out += author
-            i = i + 1
-        return out
+        if url is None or url == "":
+            return ""
+        return f'<h2><a href="/{path}?server={server_id}&url={quote(url)}">{escape(text)}</a></h2>'
 
 
     @staticmethod
@@ -92,42 +80,55 @@ class UI:
 
 
     @staticmethod
-    def _render_nav_previous(links : dict[str, str]) -> str:
+    def _render_nav_previous(links : dict[str, str], server_id : str) -> str:
         if "previous" in links:
-            return UI._tag("a", "href=", "<   ")
+            return UI._tag("a", f'href=/browse?server={server_id}&url={quote(links["previous"])}', "<   ")
         return "<   "
 
 
     @staticmethod
-    def _render_nav_next(links : dict[str, str]) -> str:
+    def _render_nav_next(links : dict[str, str], server_id : str) -> str:
         if "next" in links:
-            return UI._tag("a", "href=", "   >")
+            return UI._tag("a", f'href=/browse?server={server_id}&url={quote(links["next"])}', "   >")
         return "   >"
-    
+
 
     @staticmethod
-    def _render_nav(links : dict[str, str]) -> str:
+    def _render_page(url : str) -> str:
+        parsed_url = urlparse(url)
+        url_params = parse_qs(parsed_url.query)
+        page = url_params.get("page", ["0"])[0]
+        return str(int(page) + 1)
+
+
+    @staticmethod
+    def _render_nav(links : dict[str, str], url : str, server_id : str) -> str:
         if "previous" in links or "next" in links:
-            return UI._render_nav_previous(links) + " | " + " | " + UI._render_nav_next(links)
+            return UI._render_nav_previous(links, server_id) + " | " + UI._render_page(url) + " | " + UI._render_nav_next(links, server_id)
         return ""
 
 
     @staticmethod
-    def _render_entries(entries : dict[str, opds.Entry], browse_path : str, view_path : str) -> str:
+    def _render_entries(entries : dict[str, opds.Entry], url : str, server_id : str, browse_path : str, view_path : str) -> str:
         out : str = ""
         for entry_id in entries:
             entry : opds.Entry = entries[entry_id]
             if entry.is_file():
                 out += UI._tag(
                     "h2", "",
-                    UI._tag("a", f'href={view_path}?url={entry.links["http://opds-spec.org/acquisition"]}', escape(entry.title))
+                    UI._tag("a", f'href={view_path}?server={server_id}&entry={entry.id}&url={quote(url)}', escape(entry.title))
                 )
             else:
                 out += UI._tag(
                     "h2", "",
-                    UI._tag("a", f'href={browse_path}?url={entry.links["subsection"]}', escape(entry.title))
+                    UI._tag("a", f'href={browse_path}?server={server_id}&url={quote(entry.subsection_url())}', escape(entry.title))
                 )
         return out
+
+
+    @staticmethod
+    def _render_thumbnail(thumbnail_path : str, server_id : str, thumbnail_url : str):
+        return f'<img align="left" src="/{thumbnail_path}?server={server_id}&url={quote(thumbnail_url)}">'
 
 
     @staticmethod
@@ -152,7 +153,7 @@ class UI:
                                 "form", f'action="/{add_server_path}" method="post"',
                                 "<input type=\"text\" name=\"url\" placeholder=\"protocol://host:port/opds_path\">"
                                 "<input type=\"submit\" value=\"Add\">"
-                                )
+                            )
                         )
                     )
                 )
@@ -165,7 +166,7 @@ class UI:
 
 
     @staticmethod
-    def browse(page_title : str, entries : dict[str, opds.Entry], links : dict[str, str], browse_path : str, view_path : str) -> str:
+    def browse(page_title : str, entries : dict[str, opds.Entry], links : dict[str, str], url : str, server_id : str, browse_path : str, view_path : str) -> str:
         return UI._page(
             UI._tag(
                 "table", "width=\"100%\"",
@@ -176,23 +177,23 @@ class UI:
                         UI._tag("h1", "", escape(page_title))
                     ) + UI._tag(
                         "td", "align=\"right\"",
-                        UI._tag("h1", "", UI._render_nav(links))
+                        UI._tag("h1", "", UI._render_nav(links, url, server_id))
                     )
                 )
             ) +
             UI._tag(
                 "ul", "",
-                UI._render_entries(entries, browse_path, view_path)
+                UI._render_entries(entries, url, server_id, browse_path, view_path)
             )
         )
 
 
     @staticmethod
-    def entry(entry : opds.Entry, thumbnail_path : str, download_path : str) -> str:
+    def entry(entry : opds.Entry, server_id : str, thumbnail_path : str, download_path : str) -> str:
         return UI._page(
             UI._tag("h1", "", entry.title) +
-            UI._render_authors(entry.authors) +
-            UI._render_link(download_path, "Download", entry.links["http://opds-spec.org/acquisition"], "") +
-            UI._render_thumbnail(thumbnail_path, entry.links["http://opds-spec.org/image/thumbnail"]) +
+            ", ".join(entry.authors) +
+            UI._render_link(download_path, "Download", entry.download_url(), server_id) +
+            UI._render_thumbnail(thumbnail_path, server_id, entry.thumbnail_url()) +
             entry.description
         )
