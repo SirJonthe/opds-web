@@ -14,17 +14,17 @@ OPDS (Open Publication Distribution System) is an open standard which allows cli
 
 ## Usage
 
-`opds-web` needs to be deployed to a server - Probably a home server. It has a small set of requirements such as `python3` and the libraries as defined in `requirements.txt`. You must decide for yourself how you want this software to boot and what ports to listen to, but for the purposes of the below sections I will use the example URL `http://[MY_SERVER]:[MY_OPDS_WEB_PORT]`. You must also ensure that firewall settings allow communication between the server and the client device.
+`opds-web` needs to be deployed to a server - Probably a home server. It has a small set of requirements such as `python3` and the libraries as defined in `requirements.txt`. You must decide for yourself how you want this software to boot and what ports to listen to. You must also ensure that firewall settings allow communication between the server and the client device.
 
-Installing the requirements for the server includes installing the `python3` package by whatever means you deem fit. Then you can install the requirements using `pip` (if available and if this is your preference) using:
+Installing the requirements for the server includes installing the `python3` package by whatever means you deem fit. Then you can install the requirements using `pip3` (if available and if this is your preference) using:
 
 ```
-pip install requirements.txt
+pip3 install requirements.txt
 ```
 
 Finally, you can boot the software using:
 ```
-python3 main.py
+python3 main.py --host=0.0.0.0 --port=8080
 ```
 
-Once deployed, you can boot your browser-enabled client device and browse to the URL `http://[MY_SERVER]:[MY_OPDS_WEB_PORT]`. The first page allows you to add OPDS servers or browse already added OPDS servers. Clicking a server will prompt you for credentials for accessing the server when applicable. Once you have access you will be able to browse the digital OPDS catalog.
+Once deployed, you can boot your browser-enabled client device and browse to the URL given by the specified host and port. The first page allows you to add OPDS servers or browse already added OPDS servers. Clicking a server will prompt you for credentials for accessing the server when applicable. Once you have access you will be able to browse the digital OPDS catalog.
