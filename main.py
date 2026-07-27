@@ -7,7 +7,7 @@ from urllib.parse import urljoin, quote, urlparse, parse_qs
 import servers
 import argparse
 import opds
-import html_writer
+import ui
 
 
 class App:
@@ -45,7 +45,7 @@ def get_credentials(server_id : str) -> tuple[str, str]:
     return username, password
 
 
-def get_feed_reader(path : str, server_id : str):
+def get_feed_reader(path : str, server_id : str) -> opds.Reader | None:
     credentials = get_credentials(server_id)
     if isinstance(credentials, Response):
         return credentials
@@ -65,18 +65,20 @@ def get_feed_reader(path : str, server_id : str):
 
 @app.client.route("/")
 def index():
-   return html_writer.HTMLWriter.servers(app.servers, "browse")
+   return ui.UI.servers(app.servers, "browse", "add_server")
 
 
 @app.client.route("/browse")
 def browse():
-    reader = get_feed_reader(request.args["url"], requests.args["server"])
-    return html_writer.HTMLWriter.browse(reader.entries, "browse", "view")
+    reader = get_feed_reader(request.args["url"], request.args["server"])
+    return ui.UI.browse(reader.title, reader.entries, reader.links, "browse", "view")
 
 
 @app.client.route("/view")
 def entry():
-    return html_writer.HTMLWriter.entry()
+    reader = get_feed_reader(request.args["url"], request.args["server"])
+    entry = reader.entries[request.arg["entry"]]
+    return ui.UI.entry(entry, "thumbnail", "download")
 
 
 @app.client.route("/download")
@@ -126,6 +128,18 @@ def thumbnail():
         r.iter_content(chunk_size=8192),
         content_type=r.headers.get("Content-Type", "image/jpeg")
     )
+
+
+@app.client.route("/add_server", methods=["POST"])
+def add_server():
+    servers.add_server(request.form["url"], app.servers)
+    return ui.UI.servers(app.servers, "browse", "add_server")
+
+
+@app.client.route("/remove_server", methods=["POST"])
+def remove_server():
+    servers.remove_server(request.form["server"], app.servers)
+    return ui.UI.servers(app.servers, "browse", "add_server")
 
 
 argparser = argparse.ArgumentParser()

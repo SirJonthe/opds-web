@@ -13,6 +13,8 @@ class Entry:
         self.id = id
         self.title = title
         self.description = description
+        self.authors = []
+        self.links = {}
 
 
     def _link(self, rel : str) -> str | None:
@@ -41,29 +43,41 @@ NS = { "atom": "http://www.w3.org/2005/Atom" }
 
 
 class Reader:
+    title : str
     entries : dict[str, Entry]
+    links : dict[str, str]
+    version : str
+
+    def __init__(self, title : str):
+        self.title = title
+        self.entries = {}
+        self.links = {}
+        self.version = ""
 
 
 def from_xml(xml : str) -> Reader:
-    reader = Reader()
     root = ET.fromstring(xml)
+    reader = Reader(root.find("atom:title", NS).text)
+    reader.version = "1"
+    for link in root.findall("atom:link", NS):
+        reader.links[link.attrib.get("rel")] = link.attrib.get("href")
     for entry in root.findall("atom:entry", NS):
-        entry_id = entry.find("atom:id", NS).text
-        reader.entries[entry_id] = Entry(
-            entry_id,
+        e : Entry = Entry(
+            entry.find("atom:id", NS).text,
             entry.find("atom:title", NS).text,
-            entry.find("atom:content", NS).text,
-            ""
+            entry.find("atom:content", NS).text
         )
         for link in entry.findall("atom:link", NS):
-            reader.links[link.attrib.get("rel")] = link.attrib.get("href")
+            e.links[link.attrib.get("rel")] = link.attrib.get("href")
         for author in entry.findall("atom:author", NS):
             for name in author.findall("atom:name", NS):
-                reader.authors += name.text
+                e.authors += name.text
+        reader.entries[e.id] = e
     return reader
 
 
 def from_json(self, json : str) -> Reader:
-    # OPDS v2 goes here...
+    # TODO: OPDS v2 goes here...
     reader = Reader()
+    reader.version = "2"
     return reader

@@ -26,9 +26,9 @@ def load_servers() -> dict[str, str]:
 
 def save_servers(servers : dict[str, str]):
     with open(SERVER_FILE, "w") as f:
-        f.write("#[protocol]://[hostname]:[port]/[opds_url]")
-        for url in servers:
-            f.write(url)
+        f.write("#[protocol]://[hostname]:[port]/[opds_url]\n")
+        for _, url in servers.items():
+            f.write(f'{url}\n')
 
 
 def add_server(url : str, servers : dict[str, str]):
