@@ -58,7 +58,10 @@ class Entry:
         Returns:
             The download URL or None if not present.
         """
-        return self._link("http://opds-spec.org/acquisition")
+        dl = self._link("http://opds-spec.org/acquisition")
+        if dl is not None:
+            return dl
+        return self._link("http://opds-spec.org/acquisition/open-access")
 
 
     def thumbnail_url(self) -> str | None:

@@ -1,6 +1,5 @@
 """Web application server software for parsing, navigating, and presenting a UI for OPDS feeds."""
 
-
 import hashlib
 import opds
 from flask import Response, Flask, request

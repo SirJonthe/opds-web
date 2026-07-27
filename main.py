@@ -1,3 +1,5 @@
+"""OPDS web client entry point."""
+
 from flask import Response, request
 import requests
 import app
@@ -10,11 +12,21 @@ server = app.App()
 
 @server.client.route("/")
 def index():
-   return ui.UI.servers(server.servers, "browse", "add_server")
+    """The index page/server browser page.
+    
+    Returns:
+        A string containing HTML.
+    """
+    return ui.UI.servers(server.servers, "browse", "add_server")
 
 
 @server.client.route("/browse")
 def browse():
+    """The directory browser page.
+    
+    Returns:
+        A string containing HTML.
+    """
     url : str = request.args["url"]
     reader = server.get_feed_reader(url)
     if isinstance(reader, Response):
@@ -24,6 +36,11 @@ def browse():
 
 @server.client.route("/view")
 def entry():
+    """The file entry page.
+    
+    Returns:
+        A string containing HTML.
+    """
     reader = server.get_feed_reader(request.args["url"])
     if isinstance(reader, Response):
         return reader
@@ -33,6 +50,11 @@ def entry():
 
 @server.client.route("/download")
 def download():
+    """The download request.
+    
+    Returns:
+        An HTTP response.
+    """
     url : str = request.args["url"]
     credentials = server.get_credentials(url)
     if isinstance(credentials, Response):
@@ -61,6 +83,11 @@ def download():
 
 @server.client.route("/thumbnail")
 def thumbnail():
+    """The thumbnail request.
+    
+    Returns:
+        An HTTP reqiest.
+    """
     url : str = request.args["url"]
     credentials = server.get_credentials(url)
     if isinstance(credentials, Response):
@@ -80,12 +107,22 @@ def thumbnail():
 
 @server.client.route("/add_server", methods=["POST"])
 def add_server():
+    """Adds a server to the server list. Returns to the server browser page.
+    
+    Returns:
+        A string containing HTML.
+    """
     server.add_server(request.form["url"])
     return ui.UI.servers(server.servers, "browse", "add_server")
 
 
 @server.client.route("/remove_server", methods=["POST"])
 def remove_server():
+    """Removes a server from the server list. Returns to the server browser page.
+    
+    Returns:
+        A string containing HTML.
+    """
     server.remove_server(request.form["server"])
     return ui.UI.servers(server.servers, "browse", "add_server")
 
