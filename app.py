@@ -3,7 +3,7 @@ import opds
 from flask import Response, Flask, request
 import base64
 import requests
-from urllib.parse import urljoin
+from urllib.parse import urlparse
 
 
 SERVER_FILE = "servers.txt"
@@ -59,8 +59,13 @@ class App:
         self.servers = App._load_servers()
 
 
-    def get_credentials(self, server_id : str) -> tuple[str, str]:
-        server = self.servers[server_id]
+    def _get_base_server_url(url : str) -> str:
+        p = urlparse(url)
+        return f"{p.scheme}://{p.netloc}"
+
+
+    def get_credentials(self, url : str) -> tuple[str, str]:
+        server = App._get_base_server_url(url)
         if server == None:
             return Response(
                 "No server",
@@ -81,13 +86,13 @@ class App:
         return username, password
 
 
-    def get_feed_reader(self, path : str, server_id : str) -> opds.Reader | Response | None:
-        credentials = self.get_credentials(server_id)
+    def get_feed_reader(self, path : str) -> opds.Reader | Response:
+        credentials = self.get_credentials(path)
         if isinstance(credentials, Response):
             return credentials
         username, password = credentials
         r = requests.get(
-            urljoin(self.servers[server_id], path),
+            path,
             auth=(username, password)
         )
         r.raise_for_status()
@@ -96,4 +101,7 @@ class App:
             return opds.from_xml(r.text)
         elif "json" in content_type:
             return opds.from_json(r.text)
-        return None
+        return Response(
+            "Unsupported format",
+            status=415
+        )

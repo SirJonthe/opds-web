@@ -16,29 +16,26 @@ def index():
 
 @server.client.route("/browse")
 def browse():
-    server_id : str = request.args["server"]
     url : str = request.args["url"]
-    reader = server.get_feed_reader(url, server_id)
+    reader = server.get_feed_reader(url)
     if isinstance(reader, Response):
         return reader
-    return ui.UI.browse(reader.title, reader.entries, reader.links, url, server_id, "browse", "view")
+    return ui.UI.browse(reader.title, reader.entries, reader.links, url, "browse", "view")
 
 
 @server.client.route("/view")
 def entry():
-    server_id : str = request.args["server"]
-    reader = server.get_feed_reader(request.args["url"], server_id)
+    reader = server.get_feed_reader(request.args["url"])
     if isinstance(reader, Response):
         return reader
     entry = reader.entries[request.args["entry"]]
-    return ui.UI.entry(entry, server_id, "thumbnail", "download")
+    return ui.UI.entry(entry, "thumbnail", "download")
 
 
 @server.client.route("/download")
 def download():
     url : str = request.args["url"]
-    server_id : str = request.args["server"]
-    credentials = server.get_credentials(server_id)
+    credentials = server.get_credentials(url)
     if isinstance(credentials, Response):
         return credentials
     username, password = credentials
@@ -66,8 +63,7 @@ def download():
 @server.client.route("/thumbnail")
 def thumbnail():
     url : str = request.args["url"]
-    server_id : str = request.args["server"]
-    credentials = server.get_credentials(server_id)
+    credentials = server.get_credentials(url)
     if isinstance(credentials, Response):
         return credentials
     username, password = credentials
