@@ -110,7 +110,7 @@ class App:
         return f"{p.scheme}://{p.netloc}"
 
 
-    def get_credentials(self, url : str) -> tuple[str, str]:
+    def get_credentials(self, url : str) -> tuple[str, str] | Response:
         """Requests the browser to prompt the user for credentials.
 
         Args:
@@ -120,18 +120,13 @@ class App:
             Either a tuple of username and password, or an HTTP response indicating an error.
         """
         server = App._get_base_server_url(url)
-        if server == None:
-            return Response(
-                "No server",
-                status=500
-            )
         auth = request.headers.get("Authorization")
         if not auth or not auth.startswith("Basic "):
             return Response(
                 "Authentication required",
                 status=401,
                 headers={
-                    "WWW-Authenticate": 'Basic realm="${server} OPDS"'
+                    "WWW-Authenticate": f'Basic realm="{server} OPDS"'
                 }
             )
         encoded = auth.split(" ", 1)[1]
