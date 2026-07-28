@@ -24,7 +24,7 @@ OPDS (Open Publication Distribution System) is an open standard which allows cli
 
 `opds-web` needs to be deployed to a server - Probably a home server. It has a small set of requirements such as `python3` and the libraries as defined in `requirements.txt`. You must decide for yourself how you want this software to boot and what ports to listen to. If you intend to access the application from another device on your network you must also ensure that the chosen port is reachable.
 
-Installing the requirements for the server includes installing the `python3` package by whatever means you deem fit. Then you can install the requirements using `pip3` (if available and if this is your preference) using:
+Installing the requirements for the server includes installing the `python3` package (>= 3.9) by whatever means you deem fit. Then you can install the requirements using `pip3` (if available and if this is your preference) using:
 
 ```
 pip3 install -r requirements.txt
@@ -40,5 +40,5 @@ Once deployed, you can boot your browser-enabled client device and browse to the
 # Future
 
 [ ] OPDS v2 support
-[ ] My Kindle does not trigger the authentication prompt. Need a dedicated login page.
+[ ] My Kindle does not trigger the authentication prompt. Need a dedicated login page and some way to store credentials securely.
 [ ] Offer file format conversions - Perhaps optional if Calibre is installed.

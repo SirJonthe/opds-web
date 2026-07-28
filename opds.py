@@ -94,7 +94,6 @@ class Reader:
         links: A dictionary of links stored in the root of the OPDS feed.
         version: A string indicating the version of the OPDS feed that was deserialized.
     """
-
     title : str
     entries : dict[str, Entry]
     links : dict[str, str]
@@ -116,7 +115,6 @@ def from_xml(xml : str) -> Reader:
     Returns:
         An OPDS reader object.
     """
-
     root = ET.fromstring(xml)
     reader = Reader(root.find("atom:title", NS).text)
     reader.version = "1"

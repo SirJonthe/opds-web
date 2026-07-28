@@ -111,6 +111,8 @@ class App:
 
 
     def get_credentials(self, url : str) -> tuple[str, str] | Response:
+        # TODO: Check if stored credentials exist
+        # TODO: Invalidate stored credentials if login fails
         """Requests the browser to prompt the user for credentials.
 
         Args:

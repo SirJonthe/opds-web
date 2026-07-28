@@ -17,7 +17,7 @@ def index():
     Returns:
         A string containing HTML.
     """
-    return ui.UI.servers(server.servers, "browse", "add_server")
+    return ui.UI.servers(server.servers, "login", "add_server") # TODO: change back to "browse"
 
 
 @server.client.route("/browse")
@@ -127,14 +127,20 @@ def remove_server():
     return ui.UI.servers(server.servers, "browse", "add_server", "remove_servers")
 
 
-#@server.client.route("/login")
-#def login():
-#    """Triggers a dedicated login page.
-#    Returns:
-#        A string containing HTML
-#    """
-#    url : str = request.args["url"]
-#    return ui.UI.login(url)
+@server.client.route("/login")
+def login():
+    """Triggers a dedicated login page.
+    Returns:
+        A string containing HTML
+    """
+    url : str = request.args["url"]
+    return ui.UI.login(url, "store_auth")
+
+
+@server.client.route("/store_auth")
+def store_auth():
+    # TODO: Not sure how to store this...
+    return browse()
 
 
 argparser = argparse.ArgumentParser()
