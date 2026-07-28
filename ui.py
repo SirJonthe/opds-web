@@ -237,14 +237,17 @@ class UI:
                     UI._tag(
                         "td", "align=\"right\"",
                         UI._tag(
-                            "details", "",
+                            "h1", "",
                             UI._tag(
-                                "summary", "",
-                                UI._tag("h1", "", "(+)")
-                            ) + UI._tag(
-                                "form", f'action="/{add_server_path}" method="post"',
-                                "<input type=\"text\" name=\"url\" placeholder=\"protocol://host:port/opds_path\">"
-                                "<input type=\"submit\" value=\"Add\">"
+                                "details", "",
+                                UI._tag(
+                                    "summary", "",
+                                    "(+)"
+                                ) + UI._tag(
+                                    "form", f'action="/{add_server_path}" method="post"',
+                                    "<input type=\"text\" name=\"url\" placeholder=\"protocol://host:port/opds_path\">"
+                                    "<input type=\"submit\" value=\"Add\">"
+                                )
                             )
                         )
                     )
@@ -314,25 +317,26 @@ class UI:
         )
 
     @staticmethod
-    def login(url : str, login_path : str) -> str:
+    def login(url : str, store_auth_path : str, next_path : str) -> str:
         """A login page.
 
         Args:
             url: The URL to provide the login for.
+            store_auth_path: The internal path to trigger when requesting to store credentials.
+            next_path: The internal path to trigger after landing on the store_auth_path.
         
         Returns:
             Generated HTML string.
         """
-
         return UI._page(
             UI._tag(
                 "h1", "",
                 "Log In"
             ) +
             UI._tag(
-                "form", f'action=/{login_path} method="post"'
+                "form", f'action=/{store_auth_path} method="post"',
                 '<input type="hidden" name="server" value="{escape(server)}">'
-                '<input type="hidden" name="next" value="{escape(url)}">' +
+                f'<input type="hidden" name="next" value="/{next_path}?url={quote(url)}">' +
                 UI._tag(
                     "p", "",
                     'Username:<br>'

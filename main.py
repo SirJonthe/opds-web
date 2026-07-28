@@ -1,6 +1,6 @@
 """OPDS web client entry point."""
 
-from flask import Response, request
+from flask import Response, request, session, redirect
 import requests
 import app
 import argparse
@@ -17,7 +17,7 @@ def index():
     Returns:
         A string containing HTML.
     """
-    return ui.UI.servers(server.servers, "login", "add_server") # TODO: change back to "browse"
+    return ui.UI.servers(server.servers, "browse", "add_server", "remove_server")
 
 
 @server.client.route("/browse")
@@ -28,7 +28,7 @@ def browse():
         A string containing HTML.
     """
     url : str = request.args["url"]
-    reader = server.get_feed_reader(url)
+    reader = server.get_feed_reader(url, ui.UI.login(url, "store_auth", url))
     if isinstance(reader, Response):
         return reader
     return ui.UI.browse(reader.title, reader.entries, reader.links, url, "browse", "view")
@@ -41,7 +41,8 @@ def entry():
     Returns:
         A string containing HTML.
     """
-    reader = server.get_feed_reader(request.args["url"])
+    url : str = request.args["url"]
+    reader = server.get_feed_reader(url, ui.UI.login(url, "store_auth", url))
     if isinstance(reader, Response):
         return reader
     entry = reader.entries[request.args["entry"]]
@@ -56,7 +57,7 @@ def download():
         An HTTP response.
     """
     url : str = request.args["url"]
-    credentials = server.get_credentials(url)
+    credentials = server.get_credentials(url, ui.UI.login(url, "store_auth", url))
     if isinstance(credentials, Response):
         return credentials
     username, password = credentials
@@ -89,7 +90,7 @@ def thumbnail():
         An HTTP reqiest.
     """
     url : str = request.args["url"]
-    credentials = server.get_credentials(url)
+    credentials = server.get_credentials(url, ui.UI.login(url, "store_auth", url))
     if isinstance(credentials, Response):
         return credentials
     username, password = credentials
@@ -134,13 +135,15 @@ def login():
         A string containing HTML
     """
     url : str = request.args["url"]
-    return ui.UI.login(url, "store_auth")
+    next_url : str = request.args["next"]
+    return ui.UI.login(url, "store_auth", next_url)
 
 
-@server.client.route("/store_auth")
+@server.client.route("/store_auth", methods=["POST"])
 def store_auth():
     # TODO: Not sure how to store this...
-    return browse()
+    next_url : str = request.args["next"]
+    return redirect(next_url)
 
 
 argparser = argparse.ArgumentParser()

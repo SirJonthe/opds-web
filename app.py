@@ -110,13 +110,14 @@ class App:
         return f"{p.scheme}://{p.netloc}"
 
 
-    def get_credentials(self, url : str) -> tuple[str, str] | Response:
+    def get_credentials(self, url : str, fail_html : str) -> tuple[str, str] | Response:
         # TODO: Check if stored credentials exist
         # TODO: Invalidate stored credentials if login fails
         """Requests the browser to prompt the user for credentials.
 
         Args:
             url: The URL to request credentials for (not really necessary).
+            fail_html: An HTML string returned in a response 
         
         Returns:
             Either a tuple of username and password, or an HTTP response indicating an error.
@@ -125,11 +126,12 @@ class App:
         auth = request.headers.get("Authorization")
         if not auth or not auth.startswith("Basic "):
             return Response(
-                "Authentication required",
+                fail_html,
                 status=401,
                 headers={
                     "WWW-Authenticate": f'Basic realm="{server} OPDS"'
-                }
+                },
+                content_type="text/html; charset=utf-8"
             )
         encoded = auth.split(" ", 1)[1]
         decoded = base64.b64decode(encoded).decode("utf-8")
@@ -137,16 +139,17 @@ class App:
         return username, password
 
 
-    def get_feed_reader(self, path : str) -> opds.Reader | Response:
+    def get_feed_reader(self, path : str, fail_html : str) -> opds.Reader | Response:
         """Retrieves a (presumably) OPDS feed and parses it inside an OPDS reader object which is then returned.
 
         Args:
             path: The path to retrieve a feed from.
+            fail_html: An HTML string that is returned inside a response if the browser fails to authenticate.
         
         Returns:
             Either an OPDS reader object, or an HTTP response indicating an error.
         """
-        credentials = self.get_credentials(path)
+        credentials = self.get_credentials(path, fail_html)
         if isinstance(credentials, Response):
             return credentials
         username, password = credentials
