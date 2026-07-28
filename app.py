@@ -2,10 +2,11 @@
 
 import hashlib
 import opds
-from flask import Response, Flask, request
+from flask import Response, Flask, session
 import base64
 import requests
 from urllib.parse import urlparse
+import secrets
 
 
 SERVER_FILE = "servers.txt"
@@ -93,6 +94,7 @@ class App:
 
     def __init__(self : App):
         self.client = Flask(__name__)
+        self.client.secret_key = secrets.token_hex(32)
         self.servers = App._load_servers()
 
 
@@ -123,7 +125,13 @@ class App:
             Either a tuple of username and password, or an HTTP response indicating an error.
         """
         server = App._get_base_server_url(url)
-        auth = request.headers.get("Authorization")
+        username = session.get(f'{server}:username')
+        password = session.get(f'{server}:password')
+        if username is not None and password is not None:
+            return username, password
+
+        #auth = request.headers.get("Authorization") # TODO: RESTOREME
+        auth = None # TODO: REMOVEME
         if not auth or not auth.startswith("Basic "):
             return Response(
                 fail_html,

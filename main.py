@@ -141,8 +141,10 @@ def login():
 
 @server.client.route("/store_auth", methods=["POST"])
 def store_auth():
-    # TODO: Not sure how to store this...
-    next_url : str = request.args["next"]
+    next_url : str = request.form["next"]
+    base_url : str = app.App._get_base_server_url(next_url)
+    session[f'{base_url}:username'] = request.form["username"] if "username" in request.form else None
+    session[f'{base_url}:password'] = request.form["password"] if "password" in request.form else None
     return redirect(next_url)
 
 

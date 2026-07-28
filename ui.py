@@ -34,7 +34,7 @@ class UI:
         Returns:
             Generated HTML string.
         """
-        return f'<!DOCTYPE html>{UI._tag("html", "", UI._tag("head", "", UI._tag("title", "", "opds-web")) + UI._tag("body", "", content))}'
+        return f'<!DOCTYPE html>{UI._tag("html", "", UI._tag("head", "", '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">' + UI._tag("title", "", "opds-web")) + UI._tag("body", "", content))}'
 
 
     @staticmethod
@@ -292,6 +292,10 @@ class UI:
             UI._tag(
                 "ul", "",
                 UI._render_entries(entries, url, browse_path, view_path)
+            ) +
+            UI._tag(
+                "h1", "align=\"right\"",
+                UI._render_nav(links, url, browse_path)
             )
         )
 

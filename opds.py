@@ -135,7 +135,7 @@ def from_xml(xml : str) -> Reader:
     return reader
 
 
-def from_json(self, json : str) -> Reader:
+def from_json(json : str) -> Reader:
     """Deserializes a JSON (v2) OPDS feed.
     
     Args:
