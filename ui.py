@@ -55,12 +55,13 @@ class UI:
 
 
     @staticmethod
-    def _render_server_list(servers : dict[str, str], browse_path : str) -> str:
+    def _render_server_list(servers : dict[str, str], browse_path : str, remove_server_path : str) -> str:
         """Generates server list table entries with functioning remove server buttons.
         
         Args:
             servers: A dictionary of server URL:s by server ID key.
             browse_path: The internal path to trigger when clicking a server.
+            remove_server_path: The internal path to trigger when clicking to remove a server.
         
         Returns:
             Generated HTML string.
@@ -76,7 +77,7 @@ class UI:
                 UI._tag(
                     "td", "align=\"right\"",
                     UI._tag(
-                        "form", "action=\"remove_server\" method=\"post\"",
+                        "form", f'action="{remove_server_path}" method="post"',
                         f'<input type="hidden" name="server" value="{server_id}">'
                         '<input type="submit" value="Remove">'
                     )
@@ -86,19 +87,20 @@ class UI:
 
 
     @staticmethod
-    def _render_servers(servers : dict[str, str], browse_path : str) -> str:
+    def _render_servers(servers : dict[str, str], browse_path : str, remove_server_path : str) -> str:
         """Generates a server list table with functioning remove server buttons.
         
         Args:
             servers: A dictionary of server URL:s by server ID key.
             browse_path: The internal path to trigger when clicking a server.
+            remove_server_path: The internal path to trigger when clicking to remove a server.
         
         Returns:
             Generated HTML string.
         """
         return UI._tag(
             "table", "width=\"100%\"",
-            UI._render_server_list(servers, browse_path)
+            UI._render_server_list(servers, browse_path, remove_server_path)
         )
 
 
@@ -211,13 +213,14 @@ class UI:
 
 
     @staticmethod
-    def servers(servers : dict[str, str], browse_path : str, add_server_path : str) -> str:
+    def servers(servers : dict[str, str], browse_path : str, add_server_path : str, remove_server_path : str) -> str:
         """The main server browser page.
 
         Args:
             servers: A dictionary of server URL:s by server ID key.
             browse_path: The internal path to trigger when clicking a directory.
             add_server_path: The internal path to trigger when clicking "add server".
+            remove_server_path: The internal path to trigger when clicking to remove a server.
 
         Returns:
             Generated HTML string.
@@ -229,7 +232,7 @@ class UI:
                     "tr", "",
                     UI._tag(
                         "td", "valign=\"top\"",
-                        UI._tag("h1", "", escape("Server browser"))
+                        UI._tag("h1", "", escape("Server Browser"))
                     ) +
                     UI._tag(
                         "td", "align=\"right\"",
@@ -249,7 +252,7 @@ class UI:
             ) +
             UI._tag(
                 "ul", "",
-                UI._render_servers(servers, browse_path)
+                UI._render_servers(servers, browse_path, remove_server_path)
             )
         )
 
@@ -308,4 +311,38 @@ class UI:
             UI._render_link(download_path, "Download", entry.download_url()) +
             UI._render_thumbnail(thumbnail_path, entry.thumbnail_url()) +
             entry.description
+        )
+
+    @staticmethod
+    def login(url : str, login_path : str) -> str:
+        """A login page.
+
+        Args:
+            url: The URL to provide the login for.
+        
+        Returns:
+            Generated HTML string.
+        """
+
+        return UI._page(
+            UI._tag(
+                "h1", "",
+                "Log In"
+            ) +
+            UI._tag(
+                "form", f'action=/{login_path} method="post"'
+                '<input type="hidden" name="server" value="{escape(server)}">'
+                '<input type="hidden" name="next" value="{escape(url)}">' +
+                UI._tag(
+                    "p", "",
+                    'Username:<br>'
+                    '<input type="text" name="username">'
+                ) +
+                UI._tag(
+                    "p", "",
+                    'Password:<br>'
+                    '<input type="password" name="password">'
+                ) +
+                '<input type="submit" value="Log in">'
+            )
         )

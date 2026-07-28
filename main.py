@@ -113,7 +113,7 @@ def add_server():
         A string containing HTML.
     """
     server.add_server(request.form["url"])
-    return ui.UI.servers(server.servers, "browse", "add_server")
+    return ui.UI.servers(server.servers, "browse", "add_server", "remove_server")
 
 
 @server.client.route("/remove_server", methods=["POST"])
@@ -124,7 +124,17 @@ def remove_server():
         A string containing HTML.
     """
     server.remove_server(request.form["server"])
-    return ui.UI.servers(server.servers, "browse", "add_server")
+    return ui.UI.servers(server.servers, "browse", "add_server", "remove_servers")
+
+
+#@server.client.route("/login")
+#def login():
+#    """Triggers a dedicated login page.
+#    Returns:
+#        A string containing HTML
+#    """
+#    url : str = request.args["url"]
+#    return ui.UI.login(url)
 
 
 argparser = argparse.ArgumentParser()

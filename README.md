@@ -39,4 +39,6 @@ Once deployed, you can boot your browser-enabled client device and browse to the
 
 # Future
 
-I will add support for OPDS v2 eventually. Keep your pants on.
+[ ] OPDS v2 support
+[ ] My Kindle does not trigger the authentication prompt. Need a dedicated login page.
+[ ] Offer file format conversions - Perhaps optional if Calibre is installed.
