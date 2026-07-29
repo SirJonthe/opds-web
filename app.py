@@ -8,6 +8,7 @@ import requests
 from urllib.parse import urlparse
 import secrets
 from cryptography.fernet import Fernet
+import shutil
 
 
 SERVER_FILE = "conf/servers.txt"
@@ -22,11 +23,13 @@ class App:
         client: The Flask web client.
         servers: A dictionary of server URL:s stored by server ID as key.
         cipher: Encryption and decryption.
+        calibre: A string denoting the availability of Calibre tools which can be used for transcoding books.
     """
 
     client: Flask
     servers: dict[str, str]
     cipher : Fernet
+    calibre : str | None
 
 
     @staticmethod
@@ -148,6 +151,7 @@ class App:
         self.client.secret_key = App._gen_secret()
         self.servers = App._load_servers()
         self.cipher = App._gen_cipher()
+        self.calibre = shutil.which("ebook-convert")
 
 
     @staticmethod

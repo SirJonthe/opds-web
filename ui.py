@@ -199,6 +199,45 @@ class UI:
 
 
     @staticmethod
+    def _render_format_options(formats : list[str]) -> str:
+        out : str = ""
+        for format in formats:
+            out += UI._tag(
+                "option", f'value="{format}"',
+                format.upper()
+            )
+        return out
+
+
+    @staticmethod
+    def _render_download(download_path : str, download_url : str, format_picker : bool) -> str:
+        """Renders the download link and/or the download format picker.
+
+        Args:
+            download_path: The internal path to trigger when requesting a download.
+            download_url: The URL of the content to download.
+            format_picker: Show the format picker for transcoding.
+        
+        Returns:
+            Generated HTML string.
+        """
+        #if not format_picker:
+            #return UI._render_link(download_path, "Download", download_url)
+        formats : list[str] = [
+            "epub", "mobi", "azw", "azw3"
+        ]
+        return UI._tag(
+            "form", f'action="/{download_path}" method="post"',
+            f'<input type="hidden" name="url" value="{download_url}">' + # TODO: This input might need to be rendered regardless.
+            UI._tag(
+                "select", 'name="format"',
+                UI._render_format_options(formats)
+            ) +
+            '<input type="submit" value="Download">'
+        )
+
+
+    @staticmethod
     def _render_thumbnail(thumbnail_path : str, thumbnail_url : str):
         """Generates a thumbnail image.
         
@@ -301,13 +340,14 @@ class UI:
 
 
     @staticmethod
-    def entry(entry : opds.Entry, thumbnail_path : str, download_path : str) -> str:
+    def entry(entry : opds.Entry, thumbnail_path : str, download_path : str, format_picker : bool) -> str:
         """File entry view page.
 
         Args:
             entry: The file entry to display.
             thumbnail_path: The internal path to trigger when requesting a thumbnail.
             download_path: The internal path to trigger when requesting a download.
+            format_picker: Show the format picker for transcoding.
 
         Returns:
             Generated HTML string.
@@ -315,7 +355,7 @@ class UI:
         return UI._page(
             UI._tag("h1", "", entry.title) +
             ", ".join(entry.authors) +
-            UI._render_link(download_path, "Download", entry.download_url()) +
+            UI._render_download(download_path, entry.download_url(), format_picker) +
             UI._render_thumbnail(thumbnail_path, entry.thumbnail_url()) +
             entry.description
         )

@@ -46,7 +46,7 @@ def entry():
     if isinstance(reader, Response):
         return reader
     entry = reader.entries[request.args["entry"]]
-    return ui.UI.entry(entry, "thumbnail", "download")
+    return ui.UI.entry(entry, "thumbnail", "download", False)
 
 
 @server.client.route("/download")
