@@ -3,6 +3,7 @@
 from html import escape
 from urllib.parse import quote, urlparse, parse_qs
 import opds
+import os
 
 class UI:
     """A UI singleton designed to generate navigable HTML for OPDS feeds."""
@@ -199,13 +200,28 @@ class UI:
 
 
     @staticmethod
-    def _render_format_options(formats : list[str]) -> str:
+    def _render_format_options(formats : list[str], default_format : str) -> str:
+        """Adds formats to a drop-down list.
+
+        Args:
+            formats: A list of supported formats to display in a drop-down list.
+            default_format: The format inside the list of formats to be selected by default.
+        
+        Returns:
+            Generated HTML string.
+        """
         out : str = ""
         for format in formats:
-            out += UI._tag(
-                "option", f'value="{format}"',
-                format.upper()
-            )
+            if format != default_format:
+                out += UI._tag(
+                    "option", f'value="{format}"',
+                    format.upper()
+                )
+            else:
+                out += UI._tag(
+                    "option", f'value="{format}" selected',
+                    format.upper()
+                )
         return out
 
 
@@ -221,19 +237,26 @@ class UI:
         Returns:
             Generated HTML string.
         """
-        #if not format_picker:
-            #return UI._render_link(download_path, "Download", download_url)
-        formats : list[str] = [
-            "epub", "mobi", "azw", "azw3"
-        ]
+        if not format_picker:
+            return UI._render_link(download_path, "Download", download_url)
+        formats : dict[str, str] = {
+            "epub" : "epub",
+            "mobi" : "mobi",
+            "azw" : "azw",
+            "azw3" : "azw3",
+            "kepub" : "kepub"
+        }
+        path : str = urlparse(download_url).path
+        ext : str = os.path.splitext(path)[1].lstrip(".").lower()
+        formats[ext] = ext
         return UI._tag(
             "form", f'action="/{download_path}" method="post"',
-            f'<input type="hidden" name="url" value="{download_url}">' + # TODO: This input might need to be rendered regardless.
+            f'<input type="hidden" name="url" value="{download_url}">' +
             UI._tag(
                 "select", 'name="format"',
-                UI._render_format_options(formats)
+                UI._render_format_options(formats.values(), ext)
             ) +
-            '<input type="submit" value="Download">'
+            ' <input type="submit" value="Download">'
         )
 
 

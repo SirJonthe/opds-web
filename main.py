@@ -1,10 +1,15 @@
 """OPDS web client entry point."""
 
-from flask import Response, request, redirect
+from flask import Response, request, redirect, send_file, after_this_request
+import os
+import tempfile
+import subprocess
+from pathlib import Path
 import requests
 import app
 import argparse
 import ui
+from urllib.parse import urlparse, quote, unquote
 
 
 server = app.App()
@@ -46,40 +51,120 @@ def entry():
     if isinstance(reader, Response):
         return reader
     entry = reader.entries[request.args["entry"]]
-    return ui.UI.entry(entry, "thumbnail", "download", False)
+    return ui.UI.entry(entry, "thumbnail", "download", server.calibre is not None)
 
 
-@server.client.route("/download")
+@server.client.route("/download", methods=["GET", "POST"])
 def download():
     """The download request.
     
     Returns:
         An HTTP response.
     """
-    url : str = request.args["url"]
-    credentials = server.get_credentials(url, ui.UI.login(url, request.url, "store_auth"))
-    if isinstance(credentials, Response):
-        return credentials
-    username, password = credentials
-    r = requests.get(
-        url,
-        auth=(username, password),
-        stream=True
-    )
-    r.raise_for_status()
-    return Response(
-        r.iter_content(chunk_size=8192),
-        headers={
-            "Content-Type": r.headers.get(
-                "Content-Type",
-                "application/octet-stream"
-            ),
-            "Content-Disposition": r.headers.get(
-                "Content-Disposition",
-                "attachment"
+    if request.method == "GET":
+        url : str = request.args["url"]
+        credentials = server.get_credentials(url, ui.UI.login(url, request.url, "store_auth"))
+        if isinstance(credentials, Response):
+            return credentials
+        username, password = credentials
+        r = requests.get(
+            url,
+            auth=(username, password),
+            stream=True
+        )
+        r.raise_for_status()
+        return Response(
+            r.iter_content(chunk_size=8192),
+            headers={
+                "Content-Type": r.headers.get(
+                    "Content-Type",
+                    "application/octet-stream"
+                ),
+                "Content-Disposition": r.headers.get(
+                    "Content-Disposition",
+                    "attachment"
+                )
+            }
+        )
+    else:
+        # POST: conversion download
+        url : str = request.form["url"]
+        output_format: str = request.form["format"].lower()
+
+        credentials = server.get_credentials(
+            url,
+            ui.UI.login(url, request.url, "store_auth")
+        )
+        if isinstance(credentials, Response):
+            return credentials
+
+        username, password = credentials
+
+        # Determine original extension
+        original_ext = Path(urlparse(url).path).suffix.lstrip(".").lower()
+
+        # Download original file
+        with tempfile.NamedTemporaryFile(
+            suffix=f".{original_ext}",
+            delete=False
+        ) as input_file:
+            input_path = input_file.name
+
+            r = requests.get(
+                url,
+                auth=(username, password),
+                stream=True
             )
-        }
-    )
+            r.raise_for_status()
+
+            for chunk in r.iter_content(chunk_size=8192):
+                input_file.write(chunk)
+
+        # No conversion required
+        if output_format == original_ext:
+            return redirect(f"/download?url={quote(url)}")
+        elif server.calibre is None:
+            return Response(
+                "Conversion unavailable",
+                status=503
+            )
+        else:
+            output_file = tempfile.NamedTemporaryFile(
+                suffix=f".{output_format}",
+                delete=False
+            )
+            output_path = output_file.name
+            output_file.close()
+
+            subprocess.run(
+                [
+                    server.calibre,
+                    input_path,
+                    output_path
+                ],
+                check=True
+            )
+
+        @after_this_request
+        def cleanup(response):
+            try:
+                os.remove(input_path)
+            except FileNotFoundError:
+                pass
+
+            if output_path != input_path:
+                try:
+                    os.remove(output_path)
+                except FileNotFoundError:
+                    pass
+
+            return response
+
+        return send_file(
+            output_path,
+            as_attachment=True,
+            download_name=f"{Path(unquote(Path(urlparse(url).path).name)).stem}.{output_format}"
+        )
 
 
 @server.client.route("/thumbnail")

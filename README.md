@@ -39,6 +39,6 @@ Once deployed, you can boot your browser-enabled client device and browse to the
 
 # Future
 
-[ ] OPDS v2 support
-[ ] Save files as [Author]-[Title].[Format] instead of however they are named on the server.
-[ ] Offer file format conversions - Perhaps optional if Calibre is installed.
+- [ ] OPDS v2 support
+- [ ] Save files as [Author]-[Title].[Format] instead of however they are named on the server.
+- [ ] Offer file format conversions - Perhaps optional if Calibre is installed.
