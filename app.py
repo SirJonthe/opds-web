@@ -165,6 +165,15 @@ class App:
 
 
     def unauthorized_response(self : App, url : str, fail_html : str) -> Response:
+        """Returns the response for when we want to request authentication.
+
+        Args:
+            url: The URL to request authentication for.
+            fail_html: The HTML presented when we request authentication.
+        
+        Returns:
+            The response.
+        """
         server = App._get_base_server_url(url)
         return Response(
             fail_html,
@@ -174,37 +183,6 @@ class App:
             },
             content_type="text/html; charset=utf-8"
         )
-
-    def clear_credentials(self : App, url : str):
-        server = App._get_base_server_url(url)
-        del session[f'{server}:username']
-        del session[f'{server}:password']
-
-
-    def get_credentials(self : App, url : str, fail_html : str) -> tuple[str, str] | Response:
-        """Requests the browser to prompt the user for credentials.
-
-        Args:
-            url: The URL to request credentials for (not really necessary).
-            fail_html: An HTML string returned in a response 
-        
-        Returns:
-            Either a tuple of username and password, or an HTTP response indicating an error.
-        """
-        server = App._get_base_server_url(url)
-        username = self.get_from_session(f'{server}:username')
-        password = self.get_from_session(f'{server}:password')
-        if username is not None and password is not None:
-            return username, password
-
-        auth = request.headers.get("Authorization")
-        if not auth or not auth.startswith("Basic "):
-            return self.unauthorized_response(url, fail_html)
-        encoded = auth.split(" ", 1)[1]
-        decoded = base64.b64decode(encoded).decode("utf-8")
-        username, password = decoded.split(":", 1)
-        return username, password
-
 
     def store_in_session(self : App, key : str, val : str):
         """Stores an encrypted value in the session cookie.
@@ -232,6 +210,42 @@ class App:
         return self.cipher.decrypt(encrypted).decode("utf-8")
 
 
+    def clear_credentials(self : App, url : str):
+        """Removes current credentials for a given URL.
+
+        Args:
+            url: The URL for which to clear credentials.
+        """
+        server = App._get_base_server_url(url)
+        session.pop(f'{server}:username', None)
+        session.pop(f'{server}:password', None)
+
+
+    def get_credentials(self : App, url : str, fail_html : str) -> tuple[str, str] | Response:
+        """Requests the browser to prompt the user for credentials.
+
+        Args:
+            url: The URL to request credentials for (not really necessary).
+            fail_html: An HTML string returned in a response 
+        
+        Returns:
+            Either a tuple of username and password, or an HTTP response indicating an error.
+        """
+        server = App._get_base_server_url(url)
+        username = self.get_from_session(f'{server}:username')
+        password = self.get_from_session(f'{server}:password')
+        if username is not None and password is not None:
+            return username, password
+
+        auth = request.headers.get("Authorization")
+        if not auth or not auth.startswith("Basic "):
+            return self.unauthorized_response(url, fail_html)
+        encoded = auth.split(" ", 1)[1]
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        username, password = decoded.split(":", 1)
+        return username, password
+
+
     def get_feed_reader(self : App, path : str, fail_html : str) -> opds.Reader | Response:
         """Retrieves a (presumably) OPDS feed and parses it inside an OPDS reader object which is then returned.
 
@@ -251,7 +265,7 @@ class App:
             auth=(username, password)
         )
         if r.status_code == 401:
-            self.clear_credentials()
+            self.clear_credentials(path)
             return self.unauthorized_response(path, fail_html)
         else:
             r.raise_for_status()

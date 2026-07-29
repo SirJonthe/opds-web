@@ -1,6 +1,6 @@
 """OPDS web client entry point."""
 
-from flask import Response, request, session, redirect
+from flask import Response, request, redirect
 import requests
 import app
 import argparse
@@ -28,7 +28,7 @@ def browse():
         A string containing HTML.
     """
     url : str = request.args["url"]
-    reader = server.get_feed_reader(url, ui.UI.login(url, "store_auth", url))
+    reader = server.get_feed_reader(url, ui.UI.login(url, request.url, "store_auth"))
     if isinstance(reader, Response):
         return reader
     return ui.UI.browse(reader.title, reader.entries, reader.links, url, "browse", "view")
@@ -42,7 +42,7 @@ def entry():
         A string containing HTML.
     """
     url : str = request.args["url"]
-    reader = server.get_feed_reader(url, ui.UI.login(url, "store_auth", url))
+    reader = server.get_feed_reader(url, ui.UI.login(url, request.url, "store_auth"))
     if isinstance(reader, Response):
         return reader
     entry = reader.entries[request.args["entry"]]
@@ -57,7 +57,7 @@ def download():
         An HTTP response.
     """
     url : str = request.args["url"]
-    credentials = server.get_credentials(url, ui.UI.login(url, "store_auth", url))
+    credentials = server.get_credentials(url, ui.UI.login(url, request.url, "store_auth"))
     if isinstance(credentials, Response):
         return credentials
     username, password = credentials
@@ -90,7 +90,7 @@ def thumbnail():
         An HTTP reqiest.
     """
     url : str = request.args["url"]
-    credentials = server.get_credentials(url, ui.UI.login(url, "store_auth", url))
+    credentials = server.get_credentials(url, ui.UI.login(url, request.url, "store_auth"))
     if isinstance(credentials, Response):
         return credentials
     username, password = credentials
@@ -128,21 +128,16 @@ def remove_server():
     return ui.UI.servers(server.servers, "browse", "add_server", "remove_servers")
 
 
-@server.client.route("/login")
-def login():
-    """Triggers a dedicated login page.
-    Returns:
-        A string containing HTML
-    """
-    url : str = request.args["url"]
-    next_url : str = request.args["next"]
-    return ui.UI.login(url, "store_auth", next_url)
-
-
 @server.client.route("/store_auth", methods=["POST"])
 def store_auth():
+    """Triggers storage of manually input user credentials then goes to the next specified URL.
+
+    Returns:
+        A string containing HTML.
+    """
+    url : str = request.form["url"]
     next_url : str = request.form["next"]
-    base_url : str = app.App._get_base_server_url(next_url)
+    base_url : str = app.App._get_base_server_url(url)
     server.store_in_session(f'{base_url}:username', request.form["username"] if "username" in request.form else None)
     server.store_in_session(f'{base_url}:password', request.form["password"] if "password" in request.form else None)
     return redirect(next_url)

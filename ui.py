@@ -321,13 +321,13 @@ class UI:
         )
 
     @staticmethod
-    def login(url : str, store_auth_path : str, next_url : str) -> str:
+    def login(url : str, resume_url : str, store_auth_path : str) -> str:
         """A login page.
 
         Args:
             url: The URL to provide the login for.
+            resume_url: The internal path to trigger after landing on the store_auth_path.
             store_auth_path: The internal path to trigger when requesting to store credentials.
-            next_path: The internal path to trigger after landing on the store_auth_path.
         
         Returns:
             Generated HTML string.
@@ -338,8 +338,13 @@ class UI:
                 "Log In"
             ) +
             UI._tag(
+                "a", "",
+                f'resume_url={resume_url}'
+            ) +
+            UI._tag(
                 "form", f'action=/{store_auth_path} method="post"',
-                f'<input type="hidden" name="next" value="{escape(next_url)}">' +
+                f'<input type="hidden" name="url" value="{escape(url)}">'
+                f'<input type="hidden" name="next" value="{escape(resume_url)}">' +
                 UI._tag(
                     "p", "",
                     'Username:<br>'
