@@ -338,10 +338,6 @@ class UI:
                 "Log In"
             ) +
             UI._tag(
-                "a", "",
-                f'resume_url={resume_url}'
-            ) +
-            UI._tag(
                 "form", f'action=/{store_auth_path} method="post"',
                 f'<input type="hidden" name="url" value="{escape(url)}">'
                 f'<input type="hidden" name="next" value="{escape(resume_url)}">' +

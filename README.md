@@ -40,5 +40,5 @@ Once deployed, you can boot your browser-enabled client device and browse to the
 # Future
 
 [ ] OPDS v2 support
-[ ] My Kindle does not trigger the authentication prompt. Need a dedicated login page and some way to store credentials securely.
+[ ] Save files as [Author]-[Title].[Format] instead of however they are named on the server.
 [ ] Offer file format conversions - Perhaps optional if Calibre is installed.
