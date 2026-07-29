@@ -321,7 +321,7 @@ class UI:
         )
 
     @staticmethod
-    def login(url : str, store_auth_path : str, next_path : str) -> str:
+    def login(url : str, store_auth_path : str, next_url : str) -> str:
         """A login page.
 
         Args:
@@ -339,8 +339,7 @@ class UI:
             ) +
             UI._tag(
                 "form", f'action=/{store_auth_path} method="post"',
-                '<input type="hidden" name="server" value="{escape(server)}">'
-                f'<input type="hidden" name="next" value="/{next_path}?url={quote(url)}">' +
+                f'<input type="hidden" name="next" value="{escape(next_url)}">' +
                 UI._tag(
                     "p", "",
                     'Username:<br>'

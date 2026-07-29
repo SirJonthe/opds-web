@@ -1,7 +1,7 @@
-servers.txt
 out
 FUNTEXT.txt
 TODO.txt
 Makefile
 __pycache__
 .vscode
+conf

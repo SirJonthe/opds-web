@@ -143,8 +143,8 @@ def login():
 def store_auth():
     next_url : str = request.form["next"]
     base_url : str = app.App._get_base_server_url(next_url)
-    session[f'{base_url}:username'] = request.form["username"] if "username" in request.form else None
-    session[f'{base_url}:password'] = request.form["password"] if "password" in request.form else None
+    server.store_in_session(f'{base_url}:username', request.form["username"] if "username" in request.form else None)
+    server.store_in_session(f'{base_url}:password', request.form["password"] if "password" in request.form else None)
     return redirect(next_url)
 
 
