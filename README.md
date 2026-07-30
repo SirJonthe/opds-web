@@ -37,8 +37,9 @@ python3 main.py --host=0.0.0.0 --port=8080
 
 Once deployed, you can boot your browser-enabled client device and browse to the URL given by the specified host and port. The first page allows you to add OPDS servers or browse already added OPDS servers. Clicking a server will prompt you for credentials for accessing the server when applicable. Once you have access you will be able to browse the digital OPDS catalog.
 
+The page displaying individual titles for download also supports converting the currently offered format to a list of other formats if `calibre` (or more specifically `ebook-convert`) is installed. This may be necessary for old e-ink devices which may limit the formats that can be downloaded if the OPDS catalogs browsed are not already offering one of those formats.
+
 # Future
 
 - [ ] OPDS v2 support
 - [ ] Save files as [Author]-[Title].[Format] instead of however they are named on the server.
-- [ ] Offer file format conversions - Perhaps optional if Calibre is installed.
