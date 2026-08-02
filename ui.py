@@ -106,7 +106,7 @@ class UI:
 
 
     @staticmethod
-    def _render_nav_previous(links : dict[str, str], browse_path : str) -> str:
+    def _render_nav_previous(links : dict[str, opds.Links], browse_path : str) -> str:
         """Generates the Previous button to navigate to a previous page.
 
         Args:
@@ -117,12 +117,12 @@ class UI:
             Generated HTML string.
         """
         if "previous" in links:
-            return UI._tag("a", f'href=/{browse_path}?url={quote(links["previous"])}', "<   ")
+            return UI._tag("a", f'href=/{browse_path}?url={quote(links["previous"].url)}', "<   ")
         return "<   "
 
 
     @staticmethod
-    def _render_nav_next(links : dict[str, str], browse_path : str) -> str:
+    def _render_nav_next(links : dict[str, opds.Link], browse_path : str) -> str:
         """Generates the Next button to navigate to a next page.
 
         Args:
@@ -133,7 +133,7 @@ class UI:
             Generated HTML string.
         """
         if "next" in links:
-            return UI._tag("a", f'href=/{browse_path}?url={quote(links["next"])}', "   >")
+            return UI._tag("a", f'href=/{browse_path}?url={quote(links["next"].url)}', "   >")
         return "   >"
 
 
@@ -154,7 +154,7 @@ class UI:
 
 
     @staticmethod
-    def _render_nav(links : dict[str, str], url : str, browse_path : str) -> str:
+    def _render_nav(links : dict[str, opds.Links], url : str, browse_path : str) -> str:
         """Generates Previous and Next navigation buttons. Grays them out when not available.
 
         Args:
@@ -194,7 +194,7 @@ class UI:
             else:
                 out += UI._tag(
                     "h2", "",
-                    UI._tag("a", f'href={browse_path}?&url={quote(entry.subsection_url())}', escape(entry.title))
+                    UI._tag("a", f'href={browse_path}?&url={quote(entry.subsection_url().url)}', escape(entry.title))
                 )
         return out
 
@@ -226,7 +226,7 @@ class UI:
 
 
     @staticmethod
-    def _render_download(download_path : str, download_url : str, format_picker : bool) -> str:
+    def _render_download(download_path : str, download_url : opds.Link, format_picker : bool) -> str:
         """Renders the download link and/or the download format picker.
 
         Args:
@@ -244,14 +244,27 @@ class UI:
             "mobi" : "mobi",
             "azw" : "azw",
             "azw3" : "azw3",
-            "kepub" : "kepub"
+            "kepub" : "kepub" # TODO: Kobo devices require .kepub files to be named FILE.kepub.epub
         }
-        path : str = urlparse(download_url).path
-        ext : str = os.path.splitext(path)[1].lstrip(".").lower()
+        ext : str = ""
+        if download_url.mime == None:
+            path : str = urlparse(download_url.url).path
+            ext = os.path.splitext(path)[1].lstrip(".").lower()
+        else:
+            MIME_TO_EXT = {
+                "application/epub+zip": "epub",
+                "application/x-mobipocket-ebook": "mobi",
+                "application/vnd.amazon.ebook": "azw",
+                "application/vnd.amazon.mobi8-ebook": "azw3",
+                "application/vnd.comicbook-rar" : "cbr",
+                "application/vnd.comicbook+zip" : "cbz",
+                "application/pdf" : "pdf"
+            }
+            ext = MIME_TO_EXT[download_url.mime]
         formats[ext] = ext
         return UI._tag(
             "form", f'action="/{download_path}" method="post"',
-            f'<input type="hidden" name="url" value="{download_url}">' +
+            f'<input type="hidden" name="url" value="{download_url.url}">' +
             UI._tag(
                 "select", 'name="format"',
                 UI._render_format_options(formats.values(), ext)
@@ -323,7 +336,7 @@ class UI:
 
 
     @staticmethod
-    def browse(page_title : str, entries : dict[str, opds.Entry], links : dict[str, str], url : str, browse_path : str, view_path : str) -> str:
+    def browse(page_title : str, entries : dict[str, opds.Entry], links : dict[str, opds.Link], url : str, browse_path : str, view_path : str) -> str:
         """Directory browser page.
         
         Args:
@@ -375,11 +388,12 @@ class UI:
         Returns:
             Generated HTML string.
         """
+        thumb = entry.thumbnail_url()
         return UI._page(
             UI._tag("h1", "", entry.title) +
             ", ".join(entry.authors) +
             UI._render_download(download_path, entry.download_url(), format_picker) +
-            UI._render_thumbnail(thumbnail_path, entry.thumbnail_url()) +
+            UI._render_thumbnail(thumbnail_path, thumb.url if thumb is not None else "") +
             entry.description
         )
 

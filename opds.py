@@ -1,6 +1,18 @@
 """OPDS feed parsing and deserialization utilities."""
 
 import xml.etree.ElementTree as ET
+import json
+from urllib.parse import urlparse, urljoin
+from pathlib import PurePosixPath
+
+
+class Link:
+    url : str
+    mime : str
+
+    def __init__(self : Link, url : str, mime : str | None = None):
+        self.url = url
+        self.mime = mime
 
 
 class Entry:
@@ -18,7 +30,7 @@ class Entry:
     title : str
     description : str
     authors : list[str]
-    links : dict[str, str]
+    links : dict[str, Link]
 
 
     def __init__(self, id : str, title : str, description : str):
@@ -38,9 +50,7 @@ class Entry:
         Returns:
             The URL or none if the key is not present.
         """
-        if rel in self.links:
-            return self.links[rel]
-        return None
+        return self.links.get(rel, None)
 
 
     def is_file(self):
@@ -52,7 +62,7 @@ class Entry:
         return self.download_url() is not None
 
 
-    def download_url(self) -> str | None:
+    def download_url(self) -> Link | None:
         """Returns the download URL if present.
 
         Returns:
@@ -64,7 +74,7 @@ class Entry:
         return self._link("http://opds-spec.org/acquisition/open-access")
 
 
-    def thumbnail_url(self) -> str | None:
+    def thumbnail_url(self) -> Link | None:
         """Returns the thumbnail URL if present.
         
         Returns:
@@ -73,7 +83,7 @@ class Entry:
         return self._link("http://opds-spec.org/image/thumbnail")
 
 
-    def subsection_url(self) -> str | None:
+    def subsection_url(self) -> Link | None:
         """Returns the subsection URL if present.
 
         Returns:
@@ -96,30 +106,29 @@ class Reader:
     """
     title : str
     entries : dict[str, Entry]
-    links : dict[str, str]
+    links : dict[str, Link]
     version : str
 
-    def __init__(self, title : str):
+    def __init__(self, title : str, version : str):
         self.title = title
         self.entries = {}
         self.links = {}
-        self.version = ""
+        self.version = version
 
 
-def from_xml(xml : str) -> Reader:
+def from_xml(xml_str : str, base_url : str) -> Reader:
     """Deserializes a XML (v1.2) OPDS feed.
 
     Args:
-        xml: An XML OPDS (Atom) feed.
+        xml_str: String containing XML OPDS (Atom).
 
     Returns:
         An OPDS reader object.
     """
-    root = ET.fromstring(xml)
-    reader = Reader(root.find("atom:title", NS).text)
-    reader.version = "1"
+    root = ET.fromstring(xml_str)
+    reader = Reader(root.find("atom:title", NS).text, "1")
     for link in root.findall("atom:link", NS):
-        reader.links[link.attrib.get("rel")] = link.attrib.get("href")
+        reader.links[link.attrib.get("rel")] = Link(urljoin(base_url, link.attrib.get("href")))
     for entry in root.findall("atom:entry", NS):
         e : Entry = Entry(
             entry.find("atom:id", NS).text,
@@ -127,7 +136,7 @@ def from_xml(xml : str) -> Reader:
             entry.find("atom:content", NS).text
         )
         for link in entry.findall("atom:link", NS):
-            e.links[link.attrib.get("rel")] = link.attrib.get("href")
+            e.links[link.attrib.get("rel")] = Link(urljoin(base_url, link.attrib.get("href")))
         for author in entry.findall("atom:author", NS):
             for name in author.findall("atom:name", NS):
                 e.authors += [ name.text ]
@@ -135,16 +144,88 @@ def from_xml(xml : str) -> Reader:
     return reader
 
 
-def from_json(json : str) -> Reader:
+def from_json(json_str : str, base_url : str) -> Reader:
     """Deserializes a JSON (v2) OPDS feed.
-    
-    Args:
-        json: An JSON OPDS feed.
 
+    Args:
+        json_str: A string containing JSON OPDS v2.
+    
     Returns:
         An OPDS reader object.
     """
-    # TODO: OPDS v2 goes here...
-    reader = Reader()
-    reader.version = "2"
+    print(json_str)
+    obj = json.loads(json_str)
+    reader = Reader(obj["metadata"]["title"], "2")
+    for link in obj.get("links", []):
+        rel = link.get("rel")
+        href = link.get("href")
+        if rel and href:
+            reader.links[rel] = Link(href, link.get("type", None))
+    for nav in obj.get("navigation", []):
+        e = Entry(
+            nav["href"],
+            "Navigation - " + nav["title"],
+            nav.get("description", "")
+        )
+        e.links["subsection"] = Link(urljoin(base_url, nav["href"]), link.get("type", None))
+        reader.entries[e.id] = e
+    for group in obj.get("groups", []):
+        for nav in group.get("navigation", []):
+            e = Entry(
+                nav["href"],
+                group["metadata"]["title"] + " - " + nav["title"],
+                nav.get("description", "")
+            )
+            e.links["subsection"] = Link(urljoin(base_url, nav["href"]), link.get("type", None))
+            reader.entries[e.id] = e
+        for pub in obj.get("publications", []):
+            md = pub["metadata"]
+            e = Entry(
+                pub["links"][0]["href"],
+                group["metadata"]["title"] + " - " + md["title"],
+                md.get("description", "")
+            )
+            if "author" in md:
+                for author in md["author"]:
+                    e.authors.append(author["name"])
+            if "contributor" in md:
+                for contributor in md["contributor"]:
+                    if isinstance(contributor, str):
+                        e.authors.append(contributor)
+                    elif isinstance(contributor, map) and "aut" in contributor.get("role", []):
+                        e.authors.append(contributor["name"])
+            for link in pub.get("links", []):
+                rel = link.get("rel")
+                href = link.get("href")
+                if rel and href:
+                    e.links[rel] = Link(urljoin(base_url, href), link.get("type", None))
+            for image in pub.get("images", []):
+                if "thumbnail" in image["href"]:
+                    e.links["http://opds-spec.org/image/thumbnail"] = Link(urljoin(base_url, image["href"]), image.get("type", None))
+            reader.entries[e.id] = e
+    for pub in obj.get("publications", []):
+        md = pub["metadata"]
+        e = Entry(
+            pub["links"][0]["href"],
+            md["title"],
+            md.get("description", "")
+        )
+        if "author" in md:
+            for author in md["author"]:
+                e.authors.append(author["name"])
+        if "contributor" in md:
+            for contributor in md["contributor"]:
+                if isinstance(contributor, str):
+                    e.authors.append(contributor)
+                elif isinstance(contributor, map) and "aut" in contributor.get("role", []):
+                    e.authors.append(contributor["name"])
+        for link in pub.get("links", []):
+            rel = link.get("rel")
+            href = link.get("href")
+            if rel and href:
+                e.links[rel] = Link(urljoin(base_url, href), link.get("type", None))
+        for image in pub.get("images", []):
+            if "thumbnail" in image["href"]:
+                e.links["http://opds-spec.org/image/thumbnail"] = Link(urljoin(base_url, image["href"]), image.get("type", None))
+        reader.entries[e.id] = e
     return reader

@@ -151,6 +151,10 @@ class App:
         self.client.secret_key = App._gen_secret()
         self.servers = App._load_servers()
         self.cipher = App._gen_cipher()
+        self.refresh_convert_tools()
+
+
+    def refresh_convert_tools(self : App):
         self.calibre = shutil.which("ebook-convert")
 
 
@@ -275,9 +279,9 @@ class App:
             r.raise_for_status()
         content_type = r.headers.get("Content-Type", "")
         if "atom" in content_type or "xml" in content_type:
-            return opds.from_xml(r.text)
+            return opds.from_xml(r.text, App._get_base_server_url(path))
         elif "json" in content_type:
-            return opds.from_json(r.text)
+            return opds.from_json(r.text, App._get_base_server_url(path))
         return Response(
             "Unsupported format",
             status=415

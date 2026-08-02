@@ -51,6 +51,7 @@ def entry():
     if isinstance(reader, Response):
         return reader
     entry = reader.entries[request.args["entry"]]
+    server.refresh_convert_tools()
     return ui.UI.entry(entry, "thumbnail", "download", server.calibre is not None)
 
 

@@ -42,4 +42,6 @@ The page displaying individual titles for download also supports converting the 
 # Future
 
 - [ ] OPDS v2 support
+- [ ] Debug against Project Gutenberg: https://www.gutenberg.org/ebooks/search.opds/ (uses relative URL:s so look into passing "server" parameter and use urljoin() again)
+- [ ] Implement search
 - [ ] Save files as [Author]-[Title].[Format] instead of however they are named on the server.
