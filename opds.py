@@ -2,8 +2,8 @@
 
 import xml.etree.ElementTree as ET
 import json
-from urllib.parse import urlparse, urljoin
-from pathlib import PurePosixPath
+from urllib.parse import urljoin
+from html import escape
 
 
 class Link:
@@ -105,7 +105,7 @@ class Reader:
         version: A string indicating the version of the OPDS feed that was deserialized.
     """
     title : str
-    entries : dict[str, Entry]
+    entries : dict[str, Entry | Reader]
     links : dict[str, Link]
     version : str
 
@@ -153,37 +153,41 @@ def from_json(json_str : str, base_url : str) -> Reader:
     Returns:
         An OPDS reader object.
     """
-    print(json_str)
+    #print(json_str)
     obj = json.loads(json_str)
-    reader = Reader(obj["metadata"]["title"], "2")
+    reader : Reader = Reader(obj["metadata"]["title"], "2")
     for link in obj.get("links", []):
         rel = link.get("rel")
         href = link.get("href")
         if rel and href:
             reader.links[rel] = Link(href, link.get("type", None))
-    for nav in obj.get("navigation", []):
-        e = Entry(
-            nav["href"],
-            "Navigation - " + nav["title"],
-            nav.get("description", "")
-        )
-        e.links["subsection"] = Link(urljoin(base_url, nav["href"]), link.get("type", None))
-        reader.entries[e.id] = e
+    if "navigation" in obj:
+        r : Reader = Reader("Navigation", "2")
+        for nav in obj.get("navigation", []):
+            e = Entry(
+                nav["href"],
+                nav["title"],
+                escape(nav.get("description", "")).replace("\n", "<br>\n")
+            )
+            e.links["subsection"] = Link(urljoin(base_url, nav["href"]), link.get("type", None))
+            r.entries[e.id] = e
+        reader.entries["Navigation"] = r
     for group in obj.get("groups", []):
+        r : Reader = Reader(group["metadata"]["title"], "2")
         for nav in group.get("navigation", []):
             e = Entry(
                 nav["href"],
-                group["metadata"]["title"] + " - " + nav["title"],
-                nav.get("description", "")
+                nav["title"],
+                escape(nav.get("description", "")).replace("\n", "<br>\n")
             )
             e.links["subsection"] = Link(urljoin(base_url, nav["href"]), link.get("type", None))
-            reader.entries[e.id] = e
+            r.entries[e.id] = e
         for pub in obj.get("publications", []):
             md = pub["metadata"]
             e = Entry(
                 pub["links"][0]["href"],
-                group["metadata"]["title"] + " - " + md["title"],
-                md.get("description", "")
+                md["title"],
+                escape(md.get("description", "")).replace("\n", "<br>\n")
             )
             if "author" in md:
                 for author in md["author"]:
@@ -202,30 +206,35 @@ def from_json(json_str : str, base_url : str) -> Reader:
             for image in pub.get("images", []):
                 if "thumbnail" in image["href"]:
                     e.links["http://opds-spec.org/image/thumbnail"] = Link(urljoin(base_url, image["href"]), image.get("type", None))
-            reader.entries[e.id] = e
-    for pub in obj.get("publications", []):
-        md = pub["metadata"]
-        e = Entry(
-            pub["links"][0]["href"],
-            md["title"],
-            md.get("description", "")
-        )
-        if "author" in md:
-            for author in md["author"]:
-                e.authors.append(author["name"])
-        if "contributor" in md:
-            for contributor in md["contributor"]:
-                if isinstance(contributor, str):
-                    e.authors.append(contributor)
-                elif isinstance(contributor, map) and "aut" in contributor.get("role", []):
-                    e.authors.append(contributor["name"])
-        for link in pub.get("links", []):
-            rel = link.get("rel")
-            href = link.get("href")
-            if rel and href:
-                e.links[rel] = Link(urljoin(base_url, href), link.get("type", None))
-        for image in pub.get("images", []):
-            if "thumbnail" in image["href"]:
-                e.links["http://opds-spec.org/image/thumbnail"] = Link(urljoin(base_url, image["href"]), image.get("type", None))
-        reader.entries[e.id] = e
+            r.entries[e.id] = e
+        if len(r.entries) > 0:
+            reader.entries[r.title] = r
+    if "publications" in obj:
+        r : Reader = Reader("Publications", "2")
+        for pub in obj.get("publications", []):
+            md = pub["metadata"]
+            e = Entry(
+                pub["links"][0]["href"],
+                md["title"],
+                escape(md.get("description", "")).replace("\n", "<br>\n")
+            )
+            if "author" in md:
+                for author in md["author"]:
+                    e.authors.append(author["name"])
+            if "contributor" in md:
+                for contributor in md["contributor"]:
+                    if isinstance(contributor, str):
+                        e.authors.append(contributor)
+                    elif isinstance(contributor, map) and "aut" in contributor.get("role", []):
+                        e.authors.append(contributor["name"])
+            for link in pub.get("links", []):
+                rel = link.get("rel")
+                href = link.get("href")
+                if rel and href:
+                    e.links[rel] = Link(urljoin(base_url, href), link.get("type", None))
+            for image in pub.get("images", []):
+                if "thumbnail" in image["href"]:
+                    e.links["http://opds-spec.org/image/thumbnail"] = Link(urljoin(base_url, image["href"]), image.get("type", None))
+            r.entries[e.id] = e
+        reader.entries["Publications"] = r
     return reader

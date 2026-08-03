@@ -185,17 +185,21 @@ class UI:
         """
         out : str = ""
         for entry_id in entries:
-            entry : opds.Entry = entries[entry_id]
-            if entry.is_file():
-                out += UI._tag(
-                    "h2", "",
-                    UI._tag("a", f'href={view_path}?&entry={entry.id}&url={quote(url)}', escape(entry.title))
-                )
-            else:
-                out += UI._tag(
-                    "h2", "",
-                    UI._tag("a", f'href={browse_path}?&url={quote(entry.subsection_url().url)}', escape(entry.title))
-                )
+            entry : opds.Entry | opds.Reader = entries[entry_id]
+
+            if isinstance(entry, opds.Entry):
+                if entry.is_file():
+                    out += UI._tag(
+                        "h2", "",
+                        UI._tag("a", f'href={view_path}?&entry={entry.id}&url={quote(url)}', escape(entry.title))
+                    )
+                else:
+                    out += UI._tag(
+                        "h2", "",
+                        UI._tag("a", f'href={browse_path}?&url={quote(entry.subsection_url().url)}', escape(entry.title))
+                    )
+            elif isinstance(entry, opds.Reader):
+                out += UI._tag("h2", "", entry.title) + UI._render_entries(entry.entries, url, browse_path, view_path)
         return out
 
 
@@ -284,7 +288,7 @@ class UI:
         Returns:
             Generated HTML string.
         """
-        return f'<img align="left" src="/{thumbnail_path}?url={quote(thumbnail_url)}">'
+        return f'<img align="left" width="200" src="/{thumbnail_path}?url={quote(thumbnail_url)}">'
 
 
     @staticmethod

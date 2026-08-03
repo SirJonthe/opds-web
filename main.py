@@ -50,7 +50,7 @@ def entry():
     reader = server.get_feed_reader(url, ui.UI.login(url, request.url, "store_auth"))
     if isinstance(reader, Response):
         return reader
-    entry = reader.entries[request.args["entry"]]
+    entry = reader.entries.get(request.args["entry"], None) or reader.entries["Publications"].entries[request.args["entry"]]
     server.refresh_convert_tools()
     return ui.UI.entry(entry, "thumbnail", "download", server.calibre is not None)
 
