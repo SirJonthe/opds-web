@@ -2,7 +2,7 @@
 
 ## About
 
-A minimal web client for OPDS v1.2 servers.
+A minimal web client for OPDS servers.
 
 ## Background
 
@@ -14,7 +14,7 @@ OPDS (Open Publication Distribution System) is an open standard which allows cli
 
 ## Features
 
-- OPDS 1.2 client
+- OPDS 1.2 and 2.0 client
 - Pure HTML (no CSS)
 - No JavaScript
 - Designed for maximum compatibility with older browsers and e-ink devices
@@ -41,7 +41,6 @@ The page displaying individual titles for download also supports converting the 
 
 # Future
 
-- [ ] OPDS v2 support
 - [ ] Debug against Project Gutenberg: https://www.gutenberg.org/ebooks/search.opds/ (uses relative URL:s so look into passing "server" parameter and use urljoin() again)
 - [ ] Implement search
-- [ ] Save files as [Author]-[Title].[Format] instead of however they are named on the server.
+- [ ] Save files as [Author]-[Title].[Format] instead of however they are named on the server (take care that KEPUB files need the extension .kepub.epub).
