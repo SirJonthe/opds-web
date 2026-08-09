@@ -1,6 +1,7 @@
 """Web application server software for parsing, navigating, and presenting a UI for OPDS feeds."""
 
 import hashlib
+from typing import Any
 import opds
 from flask import Response, Flask, session, request
 import base64
@@ -58,7 +59,7 @@ class App:
         try:
             with open(SERVER_FILE, "r", encoding="utf-8") as f:
                 for line in f:
-                    line = line.strip().rstrip("/").lower()
+                    line = line.strip().lower()
                     if not line or line.startswith("#"):
                         continue
                     srv[App._server_id(line)] = line
@@ -126,17 +127,17 @@ class App:
         return Fernet(key)
 
 
-    def add_server(self : App, url : str):
+    def add_server(self, url : str):
         """Adds a new server URL to the existing server list and updates the main server file.
 
         Args:
             url: The server URL to store.
         """
-        self.servers[App._server_id(url)] = url.strip().rstrip("/").lower()
+        self.servers[App._server_id(url)] = url.strip().lower()
         App._save_servers(self.servers)
 
 
-    def remove_server(self : App, server_id : str):
+    def remove_server(self, server_id : str):
         """Removes the server URL corresponding to the server ID key and updates the main server file.
 
         Args:
@@ -146,7 +147,7 @@ class App:
         App._save_servers(self.servers)
 
 
-    def __init__(self : App):
+    def __init__(self):
         self.client = Flask(__name__)
         self.client.secret_key = App._gen_secret()
         self.servers = App._load_servers()
@@ -154,7 +155,7 @@ class App:
         self.refresh_convert_tools()
 
 
-    def refresh_convert_tools(self : App):
+    def refresh_convert_tools(self):
         self.calibre = shutil.which("ebook-convert")
 
 
@@ -172,7 +173,7 @@ class App:
         return f"{p.scheme}://{p.netloc}"
 
 
-    def unauthorized_response(self : App, url : str, fail_html : str) -> Response:
+    def unauthorized_response(self, url : str, fail_html : str) -> Response:
         """Returns the response for when we want to request authentication.
 
         Args:
@@ -192,7 +193,7 @@ class App:
             content_type="text/html; charset=utf-8"
         )
 
-    def store_in_session(self : App, key : str, val : str):
+    def store_in_session(self, key : str, val : str):
         """Stores an encrypted value in the session cookie.
 
         Args:
@@ -203,7 +204,7 @@ class App:
         session[key] = encrypted.decode("utf-8")
 
 
-    def get_from_session(self : App, key : str) -> any | None:
+    def get_from_session(self, key : str) -> Any | None:
         """Retrieves a decrypted value from the session cookie.
 
         Args:
@@ -218,7 +219,7 @@ class App:
         return self.cipher.decrypt(encrypted).decode("utf-8")
 
 
-    def clear_credentials(self : App, url : str):
+    def clear_credentials(self, url : str):
         """Removes current credentials for a given URL.
 
         Args:
@@ -229,7 +230,7 @@ class App:
         session.pop(f'{server}:password', None)
 
 
-    def get_credentials(self : App, url : str, fail_html : str) -> tuple[str, str] | Response:
+    def get_credentials(self, url : str, fail_html : str) -> tuple[str, str] | Response:
         """Requests the browser to prompt the user for credentials.
 
         Args:
@@ -254,7 +255,7 @@ class App:
         return username, password
 
 
-    def get_feed_reader(self : App, path : str, fail_html : str) -> opds.Reader | Response:
+    def get_feed_reader(self, path : str, fail_html : str) -> opds.Reader | Response:
         """Retrieves a (presumably) OPDS feed and parses it inside an OPDS reader object which is then returned.
 
         Args:

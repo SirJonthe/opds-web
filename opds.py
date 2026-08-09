@@ -10,7 +10,7 @@ class Link:
     url : str
     mime : str
 
-    def __init__(self : Link, url : str, mime : str | None = None):
+    def __init__(self, url : str, mime : str | None = None):
         self.url = url
         self.mime = mime
 
@@ -30,7 +30,7 @@ class Entry:
     title : str
     description : str
     authors : list[str]
-    links : dict[str, Link]
+    links : dict[str, list[Link]]
 
 
     def __init__(self, id : str, title : str, description : str):
@@ -59,14 +59,14 @@ class Entry:
         Returns:
             True if the entry is a file. False if the entry is a directory.
         """
-        return self.download_url() is not None
+        return self.download_urls() not in [ None, [] ]
 
 
-    def download_url(self) -> Link | None:
-        """Returns the download URL if present.
+    def download_urls(self) -> list[Link] | None:
+        """Returns the download URL:s if present.
 
         Returns:
-            The download URL or None if not present.
+            The download URL:s or None if not present.
         """
         dl = self._link("http://opds-spec.org/acquisition")
         if dl is not None:
@@ -74,7 +74,7 @@ class Entry:
         return self._link("http://opds-spec.org/acquisition/open-access")
 
 
-    def thumbnail_url(self) -> Link | None:
+    def thumbnail_urls(self) -> list[Link] | None:
         """Returns the thumbnail URL if present.
         
         Returns:
@@ -89,7 +89,7 @@ class Entry:
         Returns:
             The subsection URL or None if not present.
         """
-        return self._link("subsection")
+        return self._link("subsection")[0]
 
 
 NS = { "atom": "http://www.w3.org/2005/Atom" }
@@ -105,8 +105,8 @@ class Reader:
         version: A string indicating the version of the OPDS feed that was deserialized.
     """
     title : str
-    entries : dict[str, Entry | Reader]
-    links : dict[str, Link]
+    entries : dict[str]
+    links : dict[str, list[Link]]
     version : str
 
     def __init__(self, title : str, version : str):
@@ -114,6 +114,35 @@ class Reader:
         self.entries = {}
         self.links = {}
         self.version = version
+
+
+def _get_xml_content(content) -> str:
+    """Reads a content string from an XML Atom feed, which can be plain text, HTML, or XHTML.
+
+    Args:
+        content: The ElementTree contents of a "atom:content" tag.
+    
+    Returns:
+        A string containing a description that can be directly inserted as-is into the page HTML.
+    """
+    ET.register_namespace("", "http://www.w3.org/1999/xhtml")
+    if content is None:
+        return ""
+    description = ""
+    content_type = content.attrib.get("type", "text").lower()
+    if content_type in ("xhtml", "application/xhtml+xml"):
+        div = next(iter(content), None)
+        if div is not None:
+            description = ET.tostring(
+                div,
+                encoding="unicode",
+                method="html"
+            )
+    elif content_type in ("html", "text/html"):
+        description = content.text or ""
+    else:
+        description = (content.text or "").replace("\n", "<br>\n")
+    return description
 
 
 def from_xml(xml_str : str, base_url : str) -> Reader:
@@ -128,15 +157,23 @@ def from_xml(xml_str : str, base_url : str) -> Reader:
     root = ET.fromstring(xml_str)
     reader = Reader(root.find("atom:title", NS).text, "1")
     for link in root.findall("atom:link", NS):
-        reader.links[link.attrib.get("rel")] = Link(urljoin(base_url, link.attrib.get("href")))
+        rel : str = link.attrib.get("rel")
+        href : str = link.attrib.get("href")
+        if rel not in reader.links:
+            reader.links[rel] = []
+        reader.links[rel] += [Link(urljoin(base_url, href), link.get("type", None))]
     for entry in root.findall("atom:entry", NS):
         e : Entry = Entry(
             entry.find("atom:id", NS).text,
             entry.find("atom:title", NS).text,
-            entry.find("atom:content", NS).text
+            "".join(entry.find("atom:content", NS).itertext()).replace("\n", "<br>\n") # Simple way of fetching content that strips out HTML/XHTML
         )
         for link in entry.findall("atom:link", NS):
-            e.links[link.attrib.get("rel")] = Link(urljoin(base_url, link.attrib.get("href")))
+            rel : str = link.attrib.get("rel")
+            href : str = link.attrib.get("href")
+            if rel not in e.links:
+                e.links[rel] = []
+            e.links[rel] += [Link(urljoin(base_url, href), link.get("type", None))]
         for author in entry.findall("atom:author", NS):
             for name in author.findall("atom:name", NS):
                 e.authors += [ name.text ]
@@ -153,14 +190,15 @@ def from_json(json_str : str, base_url : str) -> Reader:
     Returns:
         An OPDS reader object.
     """
-    #print(json_str)
     obj = json.loads(json_str)
     reader : Reader = Reader(obj["metadata"]["title"], "2")
     for link in obj.get("links", []):
         rel = link.get("rel")
         href = link.get("href")
         if rel and href:
-            reader.links[rel] = Link(href, link.get("type", None))
+            if rel not in reader.links:
+                reader.links[rel] = []
+            reader.links[rel] += [Link(href, link.get("type", None))]
     if "navigation" in obj:
         r : Reader = Reader("Navigation", "2")
         for nav in obj.get("navigation", []):
@@ -169,7 +207,9 @@ def from_json(json_str : str, base_url : str) -> Reader:
                 nav["title"],
                 escape(nav.get("description", "")).replace("\n", "<br>\n")
             )
-            e.links["subsection"] = Link(urljoin(base_url, nav["href"]), link.get("type", None))
+            if "subsection" not in e.links:
+                e.links["subsection"] = []
+            e.links["subsection"] += [Link(urljoin(base_url, nav["href"]), link.get("type", None))]
             r.entries[e.id] = e
         reader.entries["Navigation"] = r
     for group in obj.get("groups", []):
@@ -180,7 +220,9 @@ def from_json(json_str : str, base_url : str) -> Reader:
                 nav["title"],
                 escape(nav.get("description", "")).replace("\n", "<br>\n")
             )
-            e.links["subsection"] = Link(urljoin(base_url, nav["href"]), link.get("type", None))
+            if "subsection" not in e.links:
+                e.links["subsection"] = []
+            e.links["subsection"] += [Link(urljoin(base_url, nav["href"]), link.get("type", None))]
             r.entries[e.id] = e
         for pub in obj.get("publications", []):
             md = pub["metadata"]
@@ -202,10 +244,13 @@ def from_json(json_str : str, base_url : str) -> Reader:
                 rel = link.get("rel")
                 href = link.get("href")
                 if rel and href:
-                    e.links[rel] = Link(urljoin(base_url, href), link.get("type", None))
+                    if rel not in e.links:
+                        e.links[rel] = []
+                    e.links[rel] = [Link(urljoin(base_url, href), link.get("type", None))]
             for image in pub.get("images", []):
                 if "thumbnail" in image["href"]:
-                    e.links["http://opds-spec.org/image/thumbnail"] = Link(urljoin(base_url, image["href"]), image.get("type", None))
+                    e.links["http://opds-spec.org/image/thumbnail"] = [Link(urljoin(base_url, image["href"]), image.get("type", None))]
+                    break
             r.entries[e.id] = e
         if len(r.entries) > 0:
             reader.entries[r.title] = r
@@ -231,10 +276,13 @@ def from_json(json_str : str, base_url : str) -> Reader:
                 rel = link.get("rel")
                 href = link.get("href")
                 if rel and href:
-                    e.links[rel] = Link(urljoin(base_url, href), link.get("type", None))
+                    if rel not in e.links:
+                        e.links[rel] = []
+                    e.links[rel] += [Link(urljoin(base_url, href), link.get("type", None))]
             for image in pub.get("images", []):
                 if "thumbnail" in image["href"]:
-                    e.links["http://opds-spec.org/image/thumbnail"] = Link(urljoin(base_url, image["href"]), image.get("type", None))
+                    e.links["http://opds-spec.org/image/thumbnail"] = [Link(urljoin(base_url, image["href"]), image.get("type", None))]
+                    break
             r.entries[e.id] = e
         reader.entries["Publications"] = r
     return reader

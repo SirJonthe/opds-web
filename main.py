@@ -4,12 +4,12 @@ from flask import Response, request, redirect, send_file, after_this_request
 import os
 import tempfile
 import subprocess
-from pathlib import Path
 import requests
 import app
 import argparse
 import ui
-from urllib.parse import urlparse, quote, unquote
+from urllib.parse import urlencode
+import json
 
 
 server = app.App()
@@ -63,7 +63,10 @@ def download():
         An HTTP response.
     """
     if request.method == "GET":
-        url : str = request.args["url"]
+        filename : str = request.args["file"]
+        data = json.loads(request.args["src"])
+        url : str = data["url"]
+        ext : str = data["ext"]
         credentials = server.get_credentials(url, ui.UI.login(url, request.url, "store_auth"))
         if isinstance(credentials, Response):
             return credentials
@@ -81,16 +84,23 @@ def download():
                     "Content-Type",
                     "application/octet-stream"
                 ),
-                "Content-Disposition": r.headers.get(
-                    "Content-Disposition",
-                    "attachment"
-                )
+                "Content-Disposition": f'attachment, filename="{filename}.{ext}"'
             }
         )
     else:
         # POST: conversion download
-        url : str = request.form["url"]
-        output_format: str = request.form["format"].lower()
+        data = json.loads(request.form["src"])
+        print(data)
+        url : str = data["url"]
+        native_format : str = data["ext"]
+        print(url)
+        print(native_format)
+        filename : str = request.form["file"]
+        output_format : str = request.form.get("dst", None)
+        if output_format in [None, ""]:
+            return redirect(f"/download?{urlencode({"src" : request.form["src"], "file" : filename})}")
+        else:
+            output_format = output_format.lower()
 
         credentials = server.get_credentials(
             url,
@@ -101,12 +111,9 @@ def download():
 
         username, password = credentials
 
-        # Determine original extension
-        original_ext = Path(urlparse(url).path).suffix.lstrip(".").lower()
-
         # Download original file
         with tempfile.NamedTemporaryFile(
-            suffix=f".{original_ext}",
+            suffix=f".{native_format}",
             delete=False
         ) as input_file:
             input_path = input_file.name
@@ -121,10 +128,7 @@ def download():
             for chunk in r.iter_content(chunk_size=8192):
                 input_file.write(chunk)
 
-        # No conversion required
-        if output_format == original_ext:
-            return redirect(f"/download?url={quote(url)}")
-        elif server.calibre is None:
+        if server.calibre is None:
             return Response(
                 "Conversion unavailable",
                 status=503
@@ -164,7 +168,7 @@ def download():
         return send_file(
             output_path,
             as_attachment=True,
-            download_name=f"{Path(unquote(Path(urlparse(url).path).name)).stem}.{output_format}"
+            download_name=f"{filename}.{output_format}"
         )
 
 

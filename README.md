@@ -27,7 +27,7 @@ OPDS (Open Publication Distribution System) is an open standard which allows cli
 Installing the requirements for the server includes installing the `python3` package (>= 3.9) by whatever means you deem fit. Then you can install the requirements using `pip3` (if available and if this is your preference) using:
 
 ```
-pip3 install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 Finally, you can boot the software using:
@@ -42,5 +42,11 @@ The page displaying individual titles for download also supports converting the 
 # Future
 
 - [ ] Debug against Project Gutenberg: https://www.gutenberg.org/ebooks/search.opds/ (uses relative URL:s so look into passing "server" parameter and use urljoin() again)
+	 *  Seems to mostly work fine now, except the file format picker (IMAGES/NOIMAGES?)...
+	- [ ] Multiple acquisition links
+		- [X] Read acquisition links into separate entries instead of overwriting them when they have the same key
+		- [ ] Communicate to the UI that there are multiple native formats instead of just one
+	- [X] Check acquisition type from MIME in Atom feed rather than filename
+	- [X] Content formatted as HTML
+- [X] Save files as [Author]-[Title].[Format] instead of however they are named on the server (take care that KEPUB files need the extension .kepub.epub).
 - [ ] Implement search
-- [ ] Save files as [Author]-[Title].[Format] instead of however they are named on the server (take care that KEPUB files need the extension .kepub.epub).

@@ -1,12 +1,23 @@
 """HTML OPDS UI construction tools."""
 
 from html import escape
-from urllib.parse import quote, urlparse, parse_qs
+from urllib.parse import quote, urlparse, parse_qs, urlencode
 import opds
 import os
+import mimetypes
+import hashlib
+import json
 
 class UI:
     """A UI singleton designed to generate navigable HTML for OPDS feeds."""
+
+    class Extension:
+        ext : str
+        url : str | None
+
+        def __init__(self, ext : str, url : str | None):
+            self.ext = ext
+            self.url = url
 
     @staticmethod
     def _tag(tag : str, param : str, content : str) -> str:
@@ -52,7 +63,7 @@ class UI:
         """
         if url is None or url == "":
             return ""
-        return f'<h2><a href="/{path}?url={quote(url)}">{escape(text)}</a></h2>'
+        return f'<h2><a href="/{path}?{urlencode({"url":url})}">{escape(text)}</a></h2>'
 
 
     @staticmethod
@@ -106,7 +117,7 @@ class UI:
 
 
     @staticmethod
-    def _render_nav_previous(links : dict[str, opds.Links], browse_path : str) -> str:
+    def _render_nav_previous(links : dict[str, list[opds.Link]], browse_path : str) -> str:
         """Generates the Previous button to navigate to a previous page.
 
         Args:
@@ -117,12 +128,12 @@ class UI:
             Generated HTML string.
         """
         if "previous" in links:
-            return UI._tag("a", f'href=/{browse_path}?url={quote(links["previous"].url)}', "<   ")
+            return UI._tag("a", f'href=/{browse_path}?{urlencode({"url":links["previous"][0].url})}', "<   ")
         return "<   "
 
 
     @staticmethod
-    def _render_nav_next(links : dict[str, opds.Link], browse_path : str) -> str:
+    def _render_nav_next(links : dict[str, list[opds.Link]], browse_path : str) -> str:
         """Generates the Next button to navigate to a next page.
 
         Args:
@@ -133,7 +144,7 @@ class UI:
             Generated HTML string.
         """
         if "next" in links:
-            return UI._tag("a", f'href=/{browse_path}?url={quote(links["next"].url)}', "   >")
+            return UI._tag("a", f'href=/{browse_path}?{urlencode({"url":links["next"][0].url})}', "   >")
         return "   >"
 
 
@@ -154,7 +165,7 @@ class UI:
 
 
     @staticmethod
-    def _render_nav(links : dict[str, opds.Links], url : str, browse_path : str) -> str:
+    def _render_nav(links : dict[str, list[opds.Link]], url : str, browse_path : str) -> str:
         """Generates Previous and Next navigation buttons. Grays them out when not available.
 
         Args:
@@ -191,12 +202,12 @@ class UI:
                 if entry.is_file():
                     out += UI._tag(
                         "h2", "",
-                        UI._tag("a", f'href={view_path}?&entry={entry.id}&url={quote(url)}', escape(entry.title))
+                        UI._tag("a", f'href={view_path}?{urlencode({"entry":entry.id, "url":url})}', escape(entry.title))
                     )
                 else:
                     out += UI._tag(
                         "h2", "",
-                        UI._tag("a", f'href={browse_path}?&url={quote(entry.subsection_url().url)}', escape(entry.title))
+                        UI._tag("a", f'href={browse_path}?{urlencode({"url":entry.subsection_url().url})}', escape(entry.title))
                     )
             elif isinstance(entry, opds.Reader):
                 out += UI._tag("h2", "", entry.title) + UI._render_entries(entry.entries, url, browse_path, view_path)
@@ -204,33 +215,76 @@ class UI:
 
 
     @staticmethod
-    def _render_format_options(formats : list[str], default_format : str) -> str:
-        """Adds formats to a drop-down list.
+    def _generate_download_filename(entry : opds.Entry) -> str:
+        """Generates a relatively unique download name based off of the authors and title.
 
         Args:
-            formats: A list of supported formats to display in a drop-down list.
-            default_format: The format inside the list of formats to be selected by default.
+            entry: The file entry to display.
+        
+        Returns:
+            Generated HTML string.
+        """
+        base = ", ".join(entry.authors) + " - " + entry.title
+        return hashlib.sha256(
+            base.encode("utf-8")
+        ).hexdigest()[:12]
+
+    @staticmethod
+    def _render_native_format_options(formats : list[Extension]) -> str:
+        """Adds source formats to a drop-down list.
+
+        Args:
+            formats: A list of source formats to display in a drop-down list.
         
         Returns:
             Generated HTML string.
         """
         out : str = ""
-        for format in formats:
-            if format != default_format:
-                out += UI._tag(
-                    "option", f'value="{format}"',
-                    format.upper()
+        i : int = 0
+        for fmt in formats:
+            if fmt.url is not None:
+                value = json.dumps(
+                    {
+                        "url": fmt.url,
+                        "ext": fmt.ext.lower()
+                    }
                 )
-            else:
+                if i > 0:
+                    out += UI._tag(
+                        "option", f'value="{escape(value)}"',
+                        fmt.ext.upper()
+                    )
+                else:
+                    out += UI._tag(
+                        "option", f'value="{escape(value)}" selected',
+                        fmt.ext.upper()
+                    )
+                i += 1
+        return out
+
+
+    @staticmethod
+    def _render_conversion_format_options(formats : list[Extension]) -> str:
+        """Adds destination formats to a drop-down list.
+        
+        Args:
+            formats: A list of destination formats to display in a drop-down list.
+        
+        Returns:
+            Generated HTML string.
+        """
+        out : str = UI._tag("option", f'value="" selected', "No conversion")
+        for format in formats:
+            if format.url is None:
                 out += UI._tag(
-                    "option", f'value="{format}" selected',
-                    format.upper()
+                    "option", f'value="{format.ext}"',
+                    format.ext.upper()
                 )
         return out
 
 
     @staticmethod
-    def _render_download(download_path : str, download_url : opds.Link, format_picker : bool) -> str:
+    def _render_download(entry : opds.Entry, download_path : str, format_picker : bool) -> str:
         """Renders the download link and/or the download format picker.
 
         Args:
@@ -241,39 +295,38 @@ class UI:
         Returns:
             Generated HTML string.
         """
-        if not format_picker:
-            return UI._render_link(download_path, "Download", download_url)
-        formats : dict[str, str] = {
-            "epub" : "epub",
-            "mobi" : "mobi",
-            "azw" : "azw",
-            "azw3" : "azw3",
-            "kepub" : "kepub" # TODO: Kobo devices require .kepub files to be named FILE.kepub.epub
-        }
-        ext : str = ""
-        if download_url.mime == None:
-            path : str = urlparse(download_url.url).path
-            ext = os.path.splitext(path)[1].lstrip(".").lower()
-        else:
-            MIME_TO_EXT = {
-                "application/epub+zip": "epub",
-                "application/x-mobipocket-ebook": "mobi",
-                "application/vnd.amazon.ebook": "azw",
-                "application/vnd.amazon.mobi8-ebook": "azw3",
-                "application/vnd.comicbook-rar" : "cbr",
-                "application/vnd.comicbook+zip" : "cbz",
-                "application/pdf" : "pdf"
-            }
-            ext = MIME_TO_EXT[download_url.mime]
-        formats[ext] = ext
+        download_urls : opds.Link = entry.download_urls()
+        formats : dict[str, UI.Extension] = {}
+        if format_picker:
+            formats["epub"]  = UI.Extension("epub",  None)
+            formats["mobi"]  = UI.Extension("mobi",  None)
+            formats["azw"]   = UI.Extension("azw",   None)
+            formats["azw3"]  = UI.Extension("azw3",  None)
+            formats["kepub"] = UI.Extension("kepub", None) # TODO: Kobo devices require .kepub files to be named FILE.kepub.epub
+        for dl in download_urls:
+            ext : str = ""
+            if dl.mime == None:
+                path : str = urlparse(dl.url).path
+                ext = os.path.splitext(path)[1].lstrip(".").lower()
+            else:
+                ext = (mimetypes.guess_extension(dl.mime) or "").lstrip(".").lower()
+            formats[ext] = UI.Extension(ext, dl.url)
         return UI._tag(
             "form", f'action="/{download_path}" method="post"',
-            f'<input type="hidden" name="url" value="{download_url.url}">' +
-            UI._tag(
-                "select", 'name="format"',
-                UI._render_format_options(formats.values(), ext)
-            ) +
-            ' <input type="submit" value="Download">'
+            f'<input type="hidden" name="file" value="{UI._generate_download_filename(entry)}">' +
+            (
+                UI._tag(
+                    "select", 'name="src"',
+                    UI._render_native_format_options(formats.values())
+                ) +
+                " " +
+                (
+                    UI._tag(
+                    "select", 'name="dst"',
+                    UI._render_conversion_format_options(formats.values())
+                ) if format_picker else "") +
+                ' <input type="submit" value="Download">'
+            ) if download_urls is not None else ""
         )
 
 
@@ -288,7 +341,7 @@ class UI:
         Returns:
             Generated HTML string.
         """
-        return f'<img align="left" width="200" src="/{thumbnail_path}?url={quote(thumbnail_url)}">'
+        return f'<img align="left" width="200" src="/{thumbnail_path}?{urlencode({"url":thumbnail_url})}">'
 
 
     @staticmethod
@@ -340,7 +393,7 @@ class UI:
 
 
     @staticmethod
-    def browse(page_title : str, entries : dict[str, opds.Entry], links : dict[str, opds.Link], url : str, browse_path : str, view_path : str) -> str:
+    def browse(page_title : str, entries : dict[str, opds.Entry], links : dict[str, list[opds.Link]], url : str, browse_path : str, view_path : str) -> str:
         """Directory browser page.
         
         Args:
@@ -392,12 +445,12 @@ class UI:
         Returns:
             Generated HTML string.
         """
-        thumb = entry.thumbnail_url()
+        thumb = entry.thumbnail_urls()
         return UI._page(
             UI._tag("h1", "", entry.title) +
             ", ".join(entry.authors) +
-            UI._render_download(download_path, entry.download_url(), format_picker) +
-            UI._render_thumbnail(thumbnail_path, thumb.url if thumb is not None else "") +
+            UI._render_download(entry, download_path, format_picker) +
+            UI._render_thumbnail(thumbnail_path, thumb[0].url if thumb is not None else "") +
             entry.description
         )
 
