@@ -255,12 +255,13 @@ class App:
         return username, password
 
 
-    def get_feed_reader(self, path : str, fail_html : str) -> opds.Reader | Response:
+    def get_feed_reader(self, path : str, fail_html : str, page : int) -> opds.Reader | Response:
         """Retrieves a (presumably) OPDS feed and parses it inside an OPDS reader object which is then returned.
 
         Args:
             path: The path to retrieve a feed from.
             fail_html: An HTML string that is returned inside a response if the browser fails to authenticate.
+            page: The page integer
         
         Returns:
             Either an OPDS reader object, or an HTTP response indicating an error.
@@ -278,11 +279,25 @@ class App:
             return self.unauthorized_response(path, fail_html)
         else:
             r.raise_for_status()
-        content_type = r.headers.get("Content-Type", "")
+        base_url : str = App._get_base_server_url(path)
+        content_type : str = r.headers.get("Content-Type", "")
         if "atom" in content_type or "xml" in content_type:
-            return opds.from_xml(r.text, App._get_base_server_url(path))
+            reader : opds.Reader = opds.from_xml(r.text, base_url, page)
+            if "search" in reader.links and len(reader.links["search"]) > 0:
+                s = requests.get(
+                    reader.links["search"][0].url,
+                    auth=(username, password)
+                )
+                if s.status_code == 401:
+                    self.clear_credentials(reader.links["search"][0].url)
+                    return self.unauthorized_response(reader.links["search"][0].url, fail_html)
+                else:
+                    s.raise_for_status()
+                reader.search = opds.search_from_xml(s.text, base_url)
+            return reader
         elif "json" in content_type:
-            return opds.from_json(r.text, App._get_base_server_url(path))
+            return opds.from_json(r.text, base_url, page)
+        print(r.text)
         return Response(
             "Unsupported format",
             status=415

@@ -41,5 +41,7 @@ The page displaying individual titles for download also supports converting the 
 
 # Future
 
-- [ ] There may be multiple acquisition links with the same MIME type, but only the last will appear in the native download list. Fix.
-- [ ] Implement search
+- [ ] FIX: There may be multiple acquisition links with the same MIME type, but only the last will appear in the native download list.
+- [ ] FIX: Need to better understand and streamline OPDS v2 representation
+- [ ] FIX: KEBUB needs to download files as *.kepub.epub
+- [ ] FEAT: Implement proper production WSGI server

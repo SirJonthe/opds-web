@@ -10,6 +10,7 @@ import argparse
 import ui
 from urllib.parse import urlencode
 import json
+import opds
 
 
 server = app.App()
@@ -33,10 +34,10 @@ def browse():
         A string containing HTML.
     """
     url : str = request.args["url"]
-    reader = server.get_feed_reader(url, ui.UI.login(url, request.url, "store_auth"))
+    reader = server.get_feed_reader(url, ui.UI.login(url, request.url, "store_auth"), int(request.args.get("page", "1")))
     if isinstance(reader, Response):
         return reader
-    return ui.UI.browse(reader.title, reader.entries, reader.links, url, "browse", "view")
+    return ui.UI.browse(reader.title, reader.search, reader.entries, reader.links, url, reader.page, "browse", "view", "search")
 
 
 @server.client.route("/view")
@@ -47,10 +48,16 @@ def entry():
         A string containing HTML.
     """
     url : str = request.args["url"]
-    reader = server.get_feed_reader(url, ui.UI.login(url, request.url, "store_auth"))
+    reader = server.get_feed_reader(url, ui.UI.login(url, request.url, "store_auth"), 1)
     if isinstance(reader, Response):
         return reader
-    entry = reader.entries.get(request.args["entry"], None) or reader.entries["Publications"].entries[request.args["entry"]]
+    entry = reader.entries.get(request.args["entry"], None)
+    if entry is None:
+        for e in reader.entries.values():
+            if isinstance(e, opds.Reader):
+                entry = e.entries.get(request.args["entry"], None)
+                if entry is not None:
+                    break
     server.refresh_convert_tools()
     return ui.UI.entry(entry, "thumbnail", "download", server.calibre is not None)
 
@@ -90,11 +97,8 @@ def download():
     else:
         # POST: conversion download
         data = json.loads(request.form["src"])
-        print(data)
         url : str = data["url"]
         native_format : str = data["ext"]
-        print(url)
-        print(native_format)
         filename : str = request.form["file"]
         output_format : str = request.form.get("dst", None)
         if output_format in [None, ""]:
@@ -231,6 +235,20 @@ def store_auth():
     server.store_in_session(f'{base_url}:username', request.form["username"] if "username" in request.form else None)
     server.store_in_session(f'{base_url}:password', request.form["password"] if "password" in request.form else None)
     return redirect(next_url)
+
+
+@server.client.route("/search", methods=["POST"])
+def search():
+    """Constructs the search URL and redirects to browse.
+
+    Returns:
+        A redirect.
+    """
+    query : str = request.form["query"]
+    url : str = request.form["url"]
+    template_type : str = request.form["template_type"]
+    search : opds.Search = opds.Search(url, template_type, "")
+    return redirect(f'/browse?{urlencode({"url":search.url(query)})}')
 
 
 argparser = argparse.ArgumentParser()

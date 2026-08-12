@@ -89,7 +89,7 @@ class UI:
                 UI._tag(
                     "td", "align=\"right\"",
                     UI._tag(
-                        "form", f'action="{remove_server_path}" method="post"',
+                        "form", f'action="/{remove_server_path}" method="post"',
                         f'<input type="hidden" name="server" value="{server_id}">'
                         '<input type="submit" value="Remove">'
                     )
@@ -117,72 +117,58 @@ class UI:
 
 
     @staticmethod
-    def _render_nav_previous(links : dict[str, list[opds.Link]], browse_path : str) -> str:
+    def _render_nav_previous(links : dict[str, list[opds.Link]], page : int, browse_path : str) -> str:
         """Generates the Previous button to navigate to a previous page.
 
         Args:
             links: A dictionary of links containing a "previous" key.
+            page: The page integer.
             browse_path: The internal path to trigger when clicking a directory.
         
         Returns:
             Generated HTML string.
         """
         if "previous" in links:
-            return UI._tag("a", f'href=/{browse_path}?{urlencode({"url":links["previous"][0].url})}', "<   ")
+            return UI._tag("a", f'href=/{browse_path}?{urlencode({"url":links["previous"][0].url, "page":str(page-1)})}', "<   ")
         return "<   "
 
 
     @staticmethod
-    def _render_nav_next(links : dict[str, list[opds.Link]], browse_path : str) -> str:
+    def _render_nav_next(links : dict[str, list[opds.Link]], page : int, browse_path : str) -> str:
         """Generates the Next button to navigate to a next page.
 
         Args:
             links: A dictionary of links containing a "next" key.
+            page: The page integer.
             browse_path: The internal path to trigger when clicking a directory.
         
         Returns:
             Generated HTML string.
         """
         if "next" in links:
-            return UI._tag("a", f'href=/{browse_path}?{urlencode({"url":links["next"][0].url})}', "   >")
+            return UI._tag("a", f'href=/{browse_path}?{urlencode({"url":links["next"][0].url, "page":str(page+1)})}', "   >")
         return "   >"
 
 
     @staticmethod
-    def _render_page(url : str) -> str:
-        """Generates the page number from the "page" parameter in the input URL.
-
-        Args:
-            url: A URL containing a "page" parameter.
-        
-        Returns:
-            Generated HTML string.
-        """
-        parsed_url = urlparse(url)
-        url_params = parse_qs(parsed_url.query)
-        page = url_params.get("page", ["0"])[0]
-        return str(int(page) + 1)
-
-
-    @staticmethod
-    def _render_nav(links : dict[str, list[opds.Link]], url : str, browse_path : str) -> str:
+    def _render_nav(links : dict[str, list[opds.Link]], page : int, browse_path : str) -> str:
         """Generates Previous and Next navigation buttons. Grays them out when not available.
 
         Args:
             links: A dictionary of links containing a "next" key.
-            url: A URL containing a "page" parameter.
+            page: The page integer.
             browse_path: The internal path to trigger when clicking a server.
 
         Returns:
             Generated HTML string.
         """
         if "previous" in links or "next" in links:
-            return UI._render_nav_previous(links, browse_path) + " | " + UI._render_page(url) + " | " + UI._render_nav_next(links, browse_path)
+            return UI._render_nav_previous(links, page, browse_path) + " | " + str(page) + " | " + UI._render_nav_next(links, page, browse_path)
         return ""
 
 
     @staticmethod
-    def _render_entries(entries : dict[str, opds.Entry], url : str, browse_path : str, view_path : str) -> str:
+    def _render_entries(entries : dict[str, opds.Entry], url : str, browse_path : str, view_path : str, search_path : str) -> str:
         """Generates a list of directory or file entries.
 
         Args:
@@ -190,6 +176,7 @@ class UI:
             url: A URL containing a "page" parameter.
             browse_path: The internal path to trigger when clicking a directory.
             view_path: The internal path to trigger when clicking a file.
+            search_path: The internal path to trigger on search.
 
         Returns:
             Generated HTML string.
@@ -210,7 +197,7 @@ class UI:
                         UI._tag("a", f'href={browse_path}?{urlencode({"url":entry.subsection_url().url})}', escape(entry.title))
                     )
             elif isinstance(entry, opds.Reader):
-                out += UI._tag("h2", "", entry.title) + UI._render_entries(entry.entries, url, browse_path, view_path)
+                out += UI._tag("h2", "", entry.title) + UI._render_search(entry.search, search_path) + UI._render_entries(entry.entries, url, browse_path, view_path, search_path)
         return out
 
 
@@ -393,16 +380,41 @@ class UI:
 
 
     @staticmethod
-    def browse(page_title : str, entries : dict[str, opds.Entry], links : dict[str, list[opds.Link]], url : str, browse_path : str, view_path : str) -> str:
+    def _render_search(search : opds.Search, search_path : str) -> str:
+        """Renders the search bar.
+
+        Args:
+            search: The search functionality.
+            search_path: The internal path to trigger on search.
+        
+        Returns:
+            Generated HTML string.
+        """
+        if search is None:
+            return ""
+        return UI._tag(
+            "form", f'action="/{search_path}" method="post"',
+            f'<input type="hidden" name="url" value="{search.template}">'
+            f'<input type="hidden" name="template_type" value="{search.template_type}">'
+            f'<input type="text" name="query" placeholder="{search.description}">'
+            '<input type="submit" value="Search">'
+        )
+
+
+    @staticmethod
+    def browse(page_title : str, search : opds.Search, entries : dict[str, opds.Entry], links : dict[str, list[opds.Link]], url : str, page : int, browse_path : str, view_path : str, search_path : str) -> str:
         """Directory browser page.
         
         Args:
             page_title: The heading of the page.
+            search: The template to use to perform search.
             entries: A dictionary of file/directory entries grouped by entry ID key.
             links: A dictionary of links for the entry.
             url: The URL of the current feed.
+            page: The page integer.
             browse_path: The internal path to trigger when clicking a directory.
             view_path: The internal path to trigger when clicking a file.
+            search_path: The internal path to trigger when searching.
 
         Returns:
             Generated HTML string.
@@ -417,17 +429,18 @@ class UI:
                         UI._tag("h1", "", escape(page_title))
                     ) + UI._tag(
                         "td", "align=\"right\"",
-                        UI._tag("h1", "", UI._render_nav(links, url, browse_path))
+                        UI._tag("h1", "", UI._render_nav(links, page, browse_path))
                     )
                 )
             ) +
+            UI._render_search(search, search_path) +
             UI._tag(
                 "ul", "",
-                UI._render_entries(entries, url, browse_path, view_path)
+                UI._render_entries(entries, url, browse_path, view_path, search_path)
             ) +
             UI._tag(
                 "h1", "align=\"right\"",
-                UI._render_nav(links, url, browse_path)
+                UI._render_nav(links, page, browse_path)
             )
         )
 
