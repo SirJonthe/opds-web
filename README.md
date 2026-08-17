@@ -24,18 +24,29 @@ OPDS (Open Publication Distribution System) is an open standard which allows cli
 
 `opds-web` needs to be deployed to a server - Probably a home server. It has a small set of requirements such as `python3` and the libraries as defined in `requirements.txt`. You must decide for yourself how you want this software to boot and what ports to listen to. If you intend to access the application from another device on your network you must also ensure that the chosen port is reachable.
 
-Installing the requirements for the server includes installing the `python3` package (>= 3.9) by whatever means you deem fit. Then you can install the requirements using `pip3` (if available and if this is your preference) using:
+You can install and run the software in one of two ways; Natively or through a virtual environment.
 
-```
+For native, installing the requirements for the server includes installing the `python3` package (>= 3.9) by whatever means you deem fit. Then you can install the requirements using `pip3` (if available and if this is your preference) using:
+
+```bash
 python3 -m pip install -r requirements.txt
 ```
 
 Finally, you can boot the software using:
-```
+```bash
 python3 main.py --host=0.0.0.0 --port=8080
 ```
 
-Once deployed, you can boot your browser-enabled client device and browse to the URL given by the specified host and port. The first page allows you to add OPDS servers or browse already added OPDS servers. Clicking a server will prompt you for credentials for accessing the server when applicable. Once you have access you will be able to browse the digital OPDS catalog.
+For a virtual environment you can use the helper scripts to help you create a Python virutal environment with required packages on a first run as well as launch the application from that virtual environment on all runs. On Linux run the script:
+```bash
+./run_unix.sh --host=0.0.0.0 --port=8080
+```
+On Windows run the script:
+```powershell
+.\run_windows.sh --host=0.0.0.0 --port=8080
+```
+
+Once deployed and running, you can boot your browser-enabled client device and browse to the URL given by the specified host and port. The first page allows you to add OPDS servers or browse already added OPDS servers. Clicking a server will prompt you for credentials for accessing the server when applicable. Once you have access you will be able to browse the digital OPDS catalog.
 
 The page displaying individual titles for download also supports converting the currently offered format to a list of other formats if `calibre` (or more specifically `ebook-convert`) is installed. This may be necessary for old e-ink devices which may limit the formats that can be downloaded if the OPDS catalogs browsed are not already offering one of those formats.
 
