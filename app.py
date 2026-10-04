@@ -296,7 +296,7 @@ class App:
                 reader.search = opds.search_from_xml(s.content, base_url)
             return reader
         elif "json" in content_type:
-            return opds.from_json(r.content, base_url, page)
+            return opds.from_json(r.content, base_url, page, path)
         print(r.text)
         return Response(
             "Unsupported format",

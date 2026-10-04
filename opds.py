@@ -2,7 +2,7 @@
 
 import xml.etree.ElementTree as ET
 import json
-from urllib.parse import urljoin, quote
+from urllib.parse import urljoin, quote, urldefrag
 from html import escape
 import uritemplate
 
@@ -258,13 +258,25 @@ def search_from_xml(xml_str : str, base_url : str) -> Search:
     return Search(urljoin(base_url, template), SearchTemplateType.OPENSEARCH, description)
 
 
-def from_json(json_str : str, base_url : str, page : int) -> Reader:
+def _same_url(url : str, other_url : str) -> bool:
+    return urldefrag(url)[0] == urldefrag(other_url)[0]
+
+
+def _is_current_navigation(nav : dict[str], base_url : str, current_url : str | None) -> bool:
+    href = nav.get("href")
+    if not href or current_url is None:
+        return False
+    return _same_url(urljoin(base_url, href), current_url) or _same_url(urljoin(current_url, href), current_url)
+
+
+def from_json(json_str : str, base_url : str, page : int, current_url : str | None = None) -> Reader:
     """Deserializes a JSON (v2) OPDS feed.
 
     Args:
         json_str: A string containing JSON OPDS v2.
         base_url: The base URL of the OPDS server.
         page: The page integer. This might be overwritten by whatever the JSON says about what the current page is.
+        current_url: The URL of the feed currently being deserialized, used to suppress self-referential navigation entries.
     
     Returns:
         An OPDS reader object.
@@ -282,6 +294,8 @@ def from_json(json_str : str, base_url : str, page : int) -> Reader:
     if "navigation" in obj:
         r : Reader = Reader("Navigation", "2")
         for nav in obj.get("navigation", []):
+            if _is_current_navigation(nav, base_url, current_url):
+                continue
             e = Entry(
                 nav["href"],
                 nav["title"],
@@ -289,13 +303,16 @@ def from_json(json_str : str, base_url : str, page : int) -> Reader:
             )
             if "subsection" not in e.links:
                 e.links["subsection"] = []
-            e.links["subsection"] += [Link(urljoin(base_url, nav["href"]), link.get("type", None))]
+            e.links["subsection"] += [Link(urljoin(base_url, nav["href"]), nav.get("type", None))]
             r.entries[e.id] = e
-        reader.entries["Navigation"] = r
+        if len(r.entries) > 0:
+            reader.entries["Navigation"] = r
     for group in obj.get("groups", []):
         r : Reader = Reader(group["metadata"]["title"], "2")
         r.page = int(group["metadata"].get("currentPage", "1"))
         for nav in group.get("navigation", []):
+            if _is_current_navigation(nav, base_url, current_url):
+                continue
             e = Entry(
                 nav["href"],
                 nav["title"],
@@ -303,7 +320,7 @@ def from_json(json_str : str, base_url : str, page : int) -> Reader:
             )
             if "subsection" not in e.links:
                 e.links["subsection"] = []
-            e.links["subsection"] += [Link(urljoin(base_url, nav["href"]), link.get("type", None))]
+            e.links["subsection"] += [Link(urljoin(base_url, nav["href"]), nav.get("type", None))]
             r.entries[e.id] = e
         for pub in group.get("publications", []):
             md = pub["metadata"]
