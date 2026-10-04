@@ -238,7 +238,7 @@ def search_from_xml(xml_str : str, base_url : str) -> Search:
     url = None
     for u in root.findall("os:Url", NS):
         t = u.get("type")
-        if t is not None and t in ["application/atom+xml"]:
+        if t is not None and t.startswith("application/atom+xml"):
             url = u
             break
     if url is None:
@@ -269,6 +269,13 @@ def _is_current_navigation(nav : dict[str], base_url : str, current_url : str | 
     return _same_url(urljoin(base_url, href), current_url) or _same_url(urljoin(current_url, href), current_url)
 
 
+def _has_rel(link : dict[str], rel : str) -> bool:
+    link_rel = link.get("rel", "")
+    if isinstance(link_rel, list):
+        return rel in link_rel
+    return link_rel == rel
+
+
 def from_json(json_str : str, base_url : str, page : int, current_url : str | None = None) -> Reader:
     """Deserializes a JSON (v2) OPDS feed.
 
@@ -288,9 +295,13 @@ def from_json(json_str : str, base_url : str, page : int, current_url : str | No
         rel = link.get("rel")
         href = link.get("href")
         if rel and href:
-            if rel not in reader.links:
-                reader.links[rel] = []
-            reader.links[rel] += [Link(href, link.get("type", None))]
+            rels = rel if isinstance(rel, list) else [rel]
+            for link_rel in rels:
+                if link_rel not in reader.links:
+                    reader.links[link_rel] = []
+                reader.links[link_rel] += [Link(href, link.get("type", None))]
+            if _has_rel(link, "search") and link.get("type", "") == "application/opds+json":
+                reader.search = search_from_json(link, base_url)
     if "navigation" in obj:
         r : Reader = Reader("Navigation", "2")
         for nav in obj.get("navigation", []):
@@ -383,10 +394,6 @@ def from_json(json_str : str, base_url : str, page : int, current_url : str | No
                     break
             r.entries[e.id] = e
         reader.entries["Publications"] = r
-        for link in obj["links"]:
-            if link.get("rel", "") == "search" and link.get("type", "") in ["application/opds+json"]:
-                reader.search = search_from_json(link, base_url)
-                break
     return reader
 
 
