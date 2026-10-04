@@ -282,7 +282,7 @@ class App:
         base_url : str = App._get_base_server_url(path)
         content_type : str = r.headers.get("Content-Type", "")
         if "atom" in content_type or "xml" in content_type:
-            reader : opds.Reader = opds.from_xml(r.text, base_url, page)
+            reader : opds.Reader = opds.from_xml(r.content, base_url, page)
             if "search" in reader.links and len(reader.links["search"]) > 0:
                 s = requests.get(
                     reader.links["search"][0].url,
@@ -293,10 +293,10 @@ class App:
                     return self.unauthorized_response(reader.links["search"][0].url, fail_html)
                 else:
                     s.raise_for_status()
-                reader.search = opds.search_from_xml(s.text, base_url)
+                reader.search = opds.search_from_xml(s.content, base_url)
             return reader
         elif "json" in content_type:
-            return opds.from_json(r.text, base_url, page)
+            return opds.from_json(r.content, base_url, page)
         print(r.text)
         return Response(
             "Unsupported format",
