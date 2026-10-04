@@ -6,7 +6,7 @@ import opds
 from flask import Response, Flask, session, request
 import base64
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urldefrag
 import secrets
 from cryptography.fernet import Fernet
 import shutil
@@ -283,14 +283,32 @@ class App:
         content_type : str = r.headers.get("Content-Type", "")
         if "atom" in content_type or "xml" in content_type:
             reader : opds.Reader = opds.from_xml(r.content, base_url, page)
+            search_url = None
             if "search" in reader.links and len(reader.links["search"]) > 0:
+                search_url = reader.links["search"][0].url
+            elif "start" in reader.links and len(reader.links["start"]) > 0:
+                start_url = reader.links["start"][0].url
+                if urldefrag(start_url)[0] != urldefrag(path)[0]:
+                    start = requests.get(
+                        start_url,
+                        auth=(username, password)
+                    )
+                    if start.status_code == 401:
+                        self.clear_credentials(start_url)
+                        return self.unauthorized_response(start_url, fail_html)
+                    else:
+                        start.raise_for_status()
+                    start_reader = opds.from_xml(start.content, base_url, 1)
+                    if "search" in start_reader.links and len(start_reader.links["search"]) > 0:
+                        search_url = start_reader.links["search"][0].url
+            if search_url is not None:
                 s = requests.get(
-                    reader.links["search"][0].url,
+                    search_url,
                     auth=(username, password)
                 )
                 if s.status_code == 401:
-                    self.clear_credentials(reader.links["search"][0].url)
-                    return self.unauthorized_response(reader.links["search"][0].url, fail_html)
+                    self.clear_credentials(search_url)
+                    return self.unauthorized_response(search_url, fail_html)
                 else:
                     s.raise_for_status()
                 reader.search = opds.search_from_xml(s.content, base_url)
